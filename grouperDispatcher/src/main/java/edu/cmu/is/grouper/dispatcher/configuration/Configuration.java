@@ -27,18 +27,14 @@ import java.util.Set;
 
 import org.apache.log4j.Logger;
 
+import edu.cmu.is.grouper.dispatcher.Constants;
 import edu.cmu.is.grouper.dispatcher.exceptions.BadConfigurationException;
 
 public enum Configuration {
 	INSTANCE;
 
-	public static final String CONFIGURATION_FILE_NAME = "grouperDispatcherConfig.txt";
 
-	public static final String CONFIGURATION_DIR_PATH = "/opt/grouperDispatcher/conf/";
-
-	public static final String PROPERTIES_FILE_NAME = "grouperDispatcher.properties";
-
-	private static final String FROM_QUEUE = PropertyUtil.getProp("fromQueue", "grouper.changelog.dispatcher");
+	private static final String FROM_QUEUE = PropertyUtil.getProp(Constants.PARAM_FROM_QUEUE, "grouper.changelog.dispatcher");
 
 	public void setPathAndFilename(String path, String filename) {
 		this.path = path;
@@ -134,7 +130,7 @@ public enum Configuration {
 	public synchronized List<ConfigurationEntry> retrieveMatchingConfigurationsForGroup(String group) throws BadConfigurationException, IOException {
 		// log.info("in getConfigEntriesForGroup.  configChangeDetected: " + getConfigChangeDetected());
 		checkIfNeedConfigReload();
-		// log.info("in retrieveMatchingConfigs for group: " + group);
+		// log.debug("in retrieveMatchingConfigs for group: " + group);
 		List<ConfigurationEntry> matchingEntries = new ArrayList<ConfigurationEntry>();
 		for (ConfigurationEntry cs : configEntries) {
 			// log.info("cs.getGroup().trim(): " + cs.getGroup().trim());
@@ -146,7 +142,7 @@ public enum Configuration {
 			if (cs.getGroup().contains("*")) {
 				// log.debug("group contains star");
 				String grpStart = this.getGroupWild(cs.getGroup().trim());
-				// log.debug("for compare --> grpStart: " + grpStart.toLowerCase() + "  input group: " + group.trim().toLowerCase());
+			//	log.debug("for compare --> grpStart: " + grpStart.toLowerCase() + "  input group: " + group.trim().toLowerCase());
 				if (group.trim().toLowerCase().startsWith(grpStart.toLowerCase())) {
 					// log.debug("adding ConfigEntry.  group starts with grpStart: " + grpStart);
 					matchingEntries.add(cs);
@@ -162,7 +158,9 @@ public enum Configuration {
 
 	public String getGroupWild(String groupWithStar) {
 		int indStar = groupWithStar.indexOf("*");
-		return groupWithStar.substring(0, indStar);
+		String result = groupWithStar.substring(0, indStar);
+	//	log.debug("groupWithStar.result: "+result);
+		return result;
 	}
 
 	public synchronized Boolean getConfigChangeDetected() {
@@ -179,7 +177,7 @@ public enum Configuration {
 
 	public String getPath() {
 		if (path == null || path.isEmpty()) {
-			return CONFIGURATION_DIR_PATH;
+			return Constants.CONFIGURATION_DIR_PATH;
 		}
 		return path;
 	}
@@ -190,7 +188,7 @@ public enum Configuration {
 
 	public String getFilename() {
 		if (filename == null || filename.isEmpty()) {
-			return CONFIGURATION_FILE_NAME;
+			return Constants.CONFIGURATION_FILE_NAME;
 		}
 		return filename;
 	}

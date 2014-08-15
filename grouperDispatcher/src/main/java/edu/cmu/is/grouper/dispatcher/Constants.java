@@ -14,17 +14,24 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 package edu.cmu.is.grouper.dispatcher;
 
+import edu.cmu.is.grouper.dispatcher.configuration.PropertyUtil;
+
 public class Constants {
 
-	public static final String PROPERTIES_DIR_PATH = "/opt/grouperDispatcher/conf";
+	public static final String PROPERTIES_DIR_PATH = "/opt/grouperDispatcher/conf/";
 
-	public static final String PROPERTIES_FILE_NAME = "Cmu_common.properties";
+	public static final String PROPERTIES_FILE_NAME = "grouperDispatcher.properties";
 
-	protected static final String PARAM_FROM_QUEUE = "fromQ";
+	public static final String PARAM_FROM_QUEUE = "fromQueue";
 
 	protected static final String PARAM_ACTIVEMQ_URL = "activemq.url";
 
-	protected static final String DEFAULT_ACTIVEMW_URL = "failover://(ssl://activemq-01.example.edu:61616,ssl://activemq-02.example.edu:61616)";
+	public static final String DEFAULT_ACTIVEMW_URL = "failover://(ssl://activemq-01.example.edu:61616,ssl://activemq-02.example.edu:61616)";
 
 	public static final Long ONE_HOUR = 3600000L;
+	
+	public static final String CONFIGURATION_FILE_NAME = "grouperDispatcherConfig.txt";
+
+	public static final String CONFIGURATION_DIR_PATH = "/opt/grouperDispatcher/conf/";
+
 }

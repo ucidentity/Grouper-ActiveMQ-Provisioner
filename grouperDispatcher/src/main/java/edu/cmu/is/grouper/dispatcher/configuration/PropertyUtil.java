@@ -23,15 +23,14 @@ import java.util.Properties;
 
 import org.apache.log4j.Logger;
 
+import edu.cmu.is.grouper.dispatcher.Constants;
+
 /**
  * 
  * @author hrf
  */
 public class PropertyUtil {
 
-	public static final String PROPERTIES_DIR_PATH = "/opt/grouperDispatcher/conf/";
-
-	public static final String PROPERTIES_FILE_NAME = "grouperDispatcher.properties";
 
 	private static Properties properties = new Properties();
 
@@ -79,12 +78,12 @@ public class PropertyUtil {
 	private static synchronized void loadProperties() {
 		// Read properties file.
 		try {
-			staticLogger.info("*** going to load properties from " + PROPERTIES_DIR_PATH + PROPERTIES_FILE_NAME + " ***");
-			properties.load(new FileInputStream(PROPERTIES_DIR_PATH + PROPERTIES_FILE_NAME));
-			staticLogger.info("properties read OKay from file: " + PROPERTIES_DIR_PATH + PROPERTIES_FILE_NAME);
+			staticLogger.info("*** going to load properties from " + Constants.PROPERTIES_DIR_PATH + Constants.PROPERTIES_FILE_NAME + " ***");
+			properties.load(new FileInputStream(Constants.PROPERTIES_DIR_PATH + Constants.PROPERTIES_FILE_NAME));
+			staticLogger.info("properties read OKay from file: " + Constants.PROPERTIES_DIR_PATH + Constants.PROPERTIES_FILE_NAME);
 		} catch (Exception e) {
-			staticLogger.error("Problem loading properties or initializing webapp - loading  " + PROPERTIES_FILE_NAME, e);
-			System.out.println("Problem loading properties or initializing webapp - loading  " + PROPERTIES_FILE_NAME);
+			staticLogger.error("Problem loading properties or initializing webapp - loading  " +Constants.PROPERTIES_FILE_NAME, e);
+			System.out.println("Problem loading properties or initializing webapp - loading  " + Constants.PROPERTIES_FILE_NAME);
 		}
 	}
 }
