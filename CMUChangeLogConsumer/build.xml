@@ -116,7 +116,6 @@
 	 	<pathelement location="${conf.dir}" />
 	    <fileset dir="${lib.dir}" includes="**/*.jar" />
 	    <fileset dir="dist/lib" includes="**/*.jar" />
-	  	<fileset dir="lib/jdbcSamples" includes="**/*.jar" />
 	  </classpath>
 	</manifestclasspath>
 	
