@@ -51,6 +51,7 @@ sub getInstance {
 		  $CMU::CFG::_CFG{'389'}{'personobjectclass'};
 		$_389->{_dnattribute}     = $CMU::CFG::_CFG{'389'}{'dnattribute'};
 		$_389->{_memberprefix}    = $CMU::CFG::_CFG{'389'}{'memberprefix'};
+		$_389->{_groupprefix}    = $CMU::CFG::_CFG{'389'}{'groupprefix'};
 		$_389->{_env}             = $CMU::CFG::_CFG{'ldap'}{'env'};
 		$_389->{_logtoerrorqueue} = $CMU::CFG::_CFG{'ldap'}{'logtoerrorqueue'};
 		$_389->{_cache}           = CMU::Cache->new;
@@ -158,12 +159,22 @@ sub getGroupDn {
 	my ( $self, $groupname ) = @_;
 	$log->debug("Calling CMU::LDAP::389::getGroupDn(self, $groupname)");
 
-	$groupname = join( "=", "CN", escape_dn_value($groupname) );
+	$groupname =  $self->{_groupprefix} . escape_dn_value($groupname);
 
 	my $dn = join( ",", $groupname, $self->{_syncou} );
 
 	$log->debug( "groupname " . $groupname . " converted to DN " . $dn );
 	return $dn;
+}
+
+sub constructMemberDnFromUid {
+	my ( $self, $uid ) = @_;
+	$log->debug("Calling CMU::LDAP::389::constructMemberDnFromUid(self, $uid)");
+
+	my $memberdn = join( "=", "uid", $uid . ",ou=AndrewPerson,dc=andrew,dc=cmu,dc=edu");
+
+	$log->debug( "uid " . $uid . " converted to DN " . $memberdn );
+	return $memberdn;
 }
 
 sub addIsMemberOf {

@@ -53,6 +53,7 @@ sub getInstance {
 		$_ad->{_personobjectclass} = $CMU::CFG::_CFG{'AD'}{'personobjectclass'};
 		$_ad->{_dnattribute}       = $CMU::CFG::_CFG{'AD'}{'dnattribute'};
 		$_ad->{_memberprefix}      = $CMU::CFG::_CFG{'AD'}{'memberprefix'};
+		$_ad->{_groupprefix}      = $CMU::CFG::_CFG{'AD'}{'groupprefix'};
 		$_ad->{_env}               = $CMU::CFG::_CFG{'ldap'}{'env'};
 		$_ad->{_logtoerrorqueue}   = $CMU::CFG::_CFG{'ldap'}{'logtoerrorqueue'};
 		$_ad->{_server}            = $_ad->getPdc();
@@ -101,8 +102,8 @@ sub getSAMAccountNameFromGroupName {
 		"Calling CMU::LDAP::getSAMAccountNameFromGroupName( self, $groupname)");
 
 	my $samaccountname = join( ".", reverse split( ":", $groupname ) );
-	$samaccountname =~ s/[\"\[\]:;|=+*?<>\/\\,]/-/g;
-	return $samaccountname;
+	$samaccountname =~ s/[\"\[\]:;|=+*?<>\/\\, ]/-/g;
+	return substr($samaccountname, 0, 256);
 }
 
 sub updateSAMAccountName {
@@ -312,7 +313,8 @@ sub getGroupDn {
 			$token = join( "=", "OU", escape_dn_value($token) );
 		}
 		else {
-			$token = join( "=", "CN", escape_dn_value($token) );
+			my $samaccountname =  substr($self->getSAMAccountNameFromGroupName($groupname), 0, 64);
+			$token =  $self->{_groupprefix} . escape_dn_value($samaccountname);
 		}
 		$count++;
 	}

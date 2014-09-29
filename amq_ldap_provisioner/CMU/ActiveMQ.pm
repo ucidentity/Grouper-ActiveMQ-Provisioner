@@ -28,6 +28,7 @@ my $_login;
 my $_password;
 my $_ldapqueue;
 my $_errorqueue;
+my $_env;
 my $_activemq = undef;
 
 my $log = Log::Log4perl->get_logger();
@@ -46,6 +47,7 @@ sub new {
 	$_activemq->{_password}   = $CMU::CFG::_CFG{'activemq'}{'password'};
 	$_activemq->{_ldapqueue}  = $CMU::CFG::_CFG{'activemq'}{'ldapqueue'};
 	$_activemq->{_errorqueue} = $CMU::CFG::_CFG{'activemq'}{'errorqueue'};
+	$_activemq->{_env} = $CMU::CFG::_CFG{'ldap'}{'env'};
 	$_activemq->connect();
 	$_activemq->subscribe();
 
@@ -214,10 +216,15 @@ sub processMessageChangeLog {
 				$ldap->removeGroupMember( $memberdn, $groupdn );
 			}
 			else {
-				$log->info( "Skipping remove member from " . $groupdn
+				if ($self->{_env} eq "389") {
+					$memberdn =  $ldap->constructMemberDnFromUid( $data->{"memberId"} );
+					$ldap->removeGroupMember( $memberdn, $groupdn );
+				}else {
+					$log->info( "Skipping remove member from " . $groupdn
 					  . " as uid "
 					  . $data->{'memberId'}
 					  . " doesn't exist" );
+				}
 			}
 		}
 		elsif ( $data->{"operation"} eq "removeIsMemberOf" ) {
