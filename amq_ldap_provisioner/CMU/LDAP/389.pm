@@ -108,6 +108,209 @@ sub disconnect {
 	undef $_389;
 }
 
+sub getGroupOwners {
+	my ( $self, $entry ) = @_;
+	$log->debug("Calling CMU::LDAP::getGroupOwners( self, ldapentry)");
+
+	my @owners = ();
+	push( @owners, $entry->get_value("owner") );
+	return @owners;
+}
+
+sub addGroupOwner {
+	my ( $self, $memberdn, $groupdn ) = @_;
+	$log->debug("Calling CMU::LDAP::addGroupOwner(self, $memberdn, $groupdn)");
+
+	my $result;
+	my @attrs = ( $self->{_dnattribute});
+	my $entry =
+	  $self->getLdapEntry( "!(owner=" . escape_filter_value($memberdn) . ")",
+		\@attrs, $groupdn );
+
+	if ( defined $entry ) {
+		$entry->add( 'owner' => [$memberdn] );
+
+		$result = $self->ldapUpdate($entry);
+
+		if ( $result->code ) {
+			if ( ldap_error_name( $result->code ) eq "LDAP_ALREADY_EXISTS" ) {
+				$log->info(
+					"owner " . $memberdn . " already exists in " . $groupdn );
+			}
+			else {
+				$log->error(
+					    "CMU::LDAP::addGroupOwner returned with error name: "
+					  . ldap_error_name( $result->code )
+					  . ", error description: "
+					  . ldap_error_desc( $result->code )
+					  . ", changetype: "
+					  . $entry->changetype()
+					  . ", ldif: "
+					  . $entry->ldif() );
+				die();
+			}
+		}
+		$log->info(
+			"owner " . $memberdn . " sucessfully added to " . $groupdn );
+	}
+	else {
+		$log->info(
+			    "Skipping addGroupOwner as ldapentry not found with owner "
+			  . $memberdn
+			  . " not in group "
+			  . $groupdn );
+	}
+	return $result;
+}
+
+sub bulkGroupOwnerAdd {
+	my ( $self, $ownerdn, $groupdn ) = @_;
+	$log->debug(
+		"Calling CMU::LDAP::bulkGroupOwnerAdd(self, ownerdn, $groupdn)");
+
+	my $result;
+	my @attrs = ( $self->{_dnattribute} );
+	my $entry =
+	  $self->getLdapEntry( "(objectClass=" . $self->{_groupobjectclass} . ")",
+		\@attrs, $groupdn );
+
+	if ( defined $entry ) {
+		$entry->add( 'owner' => [@$ownerdn] );
+
+		$result = $self->ldapUpdate($entry);
+		my $out = Dumper $ownerdn;
+		if ( $result->code ) {
+			if (   ldap_error_name( $result->code ) eq "LDAP_ALREADY_EXISTS"
+				|| ldap_error_name( $result->code ) eq
+				"LDAP_TYPE_OR_VALUE_EXISTS" )
+			{
+				$log->info(
+					"owner " . $out . " already exists in " . $groupdn );
+			}
+			else {
+				$log->error(
+					"CMU::LDAP::bulkGroupOwnerAdd returned with error name: "
+					  . ldap_error_name( $result->code )
+					  . ", error description: "
+					  . ldap_error_desc( $result->code )
+					  . ", changetype: "
+					  . $entry->changetype()
+					  . ", ldif: "
+					  . $entry->ldif() );
+			}
+		}
+		else {
+			$log->info(
+				"owners " . $out . " sucessfully added to " . $groupdn );
+		}
+	}
+	else {
+		$log->info(
+			"Skipping bulkGroupOwnerAdd as ldapentry not found for group "
+			  . $groupdn );
+	}
+	return $result;
+}
+
+sub bulkGroupOwnerRemove {
+	my ( $self, $ownerdn, $groupdn ) = @_;
+	$log->debug(
+		"Calling CMU::LDAP::bulkGroupOwnerRemove(self, ownerdn, $groupdn)");
+
+	my $result;
+	my @attrs = ( $self->{_dnattribute} );
+	my $entry =
+	  $self->getLdapEntry( "(objectClass=" . $self->{_groupobjectclass} . ")",
+		\@attrs, $groupdn );
+
+	if ( defined $entry ) {
+		$entry->delete( 'owner' => [@$ownerdn] );
+
+		my $result = $self->ldapUpdate($entry);
+		my $out    = Dumper $ownerdn;
+
+		if ( $result->code ) {
+			if ( ldap_error_name( $result->code ) eq "LDAP_NO_SUCH_OBJECT" ) {
+				$log->info( "member " . $out
+					  . " doesn't exist already in "
+					  . $groupdn );
+			}
+			else {
+				$log->error(
+"CMU::LDAP::bulkGroupOwnerRemove returned with error name: "
+					  . ldap_error_name( $result->code )
+					  . ", and error description: "
+					  . ldap_error_desc( $result->code ) );
+				die();
+			}
+		}
+		else {
+			$log->info(
+				"owner " . $out . "sucessfully removed from " . $groupdn );
+		}
+	}
+	else {
+		$log->info(
+			"Skipping bulkGroupOwnerRemove as ldapentry not found for group "
+			  . $groupdn );
+	}
+	return $result;
+}
+
+
+sub removeGroupOwner {
+	my ( $self, $memberdn, $groupdn ) = @_;
+	$log->debug(
+		"Calling CMU::LDAP::removeGroupOwner(self, $memberdn, $groupdn)");
+
+	my $result;
+	my @attrs = ( $self->{_dnattribute});
+	my $entry =
+	  $self->getLdapEntry( "&(owner=" . escape_filter_value($memberdn) . ")",
+		\@attrs, $groupdn );
+
+	if ( defined $entry ) {
+		$entry->delete( 'owner' => [$memberdn] );
+
+		my $result = $self->ldapUpdate($entry);
+
+		if ( $result->code ) {
+			if ( ldap_error_name( $result->code ) eq "LDAP_NO_SUCH_ATTRIBUTE" ) {
+				$log->info( "owner "
+					  . $memberdn
+					  . "doesn't exist already in "
+					  . $groupdn );
+			}
+			else {
+				$log->error(
+					"CMU::LDAP::removeGroupOwner returned with error name: "
+					  . ldap_error_name( $result->code )
+					  . ", error description: "
+					  . ldap_error_desc( $result->code )
+					  . ", changetype: "
+					  . $entry->changetype()
+					  . ", ldif: "
+					  . $entry->ldif() );
+				die();
+			}
+		}
+		else {
+			$log->info( "owner "
+				  . $memberdn
+				  . " sucessfully deleted from "
+				  . $groupdn );
+		}
+	}
+	else {
+		$log->info(
+			    "Skipping removeGroupOwner as ldapentry not found with owner "
+			  . $memberdn
+			  . " in group "
+			  . $groupdn );
+	}
+	return $result;
+}
+
 sub createGroup {
 	my ( $self, $dn, $description ) = @_;
 	$log->debug("Calling CMU::LDAP::389::createGroup(self, $dn)");
