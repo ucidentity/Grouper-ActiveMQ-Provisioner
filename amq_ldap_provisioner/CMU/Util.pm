@@ -119,7 +119,8 @@ sub covertMemberDNListToMembersUidHash($ @) {
                 for my $row ( 0 .. @dn_parts - 1 ) {
                     for my $col ( 0 .. @{ $dn_parts[$row] } - 1 ) {
                         if ( $col == 0 ) {
-                            $groupdn = $dn_parts[$row][$col]{CN};
+                        	my @cn_parts = split(".", $dn_parts[$row][$col]{CN});
+                            $groupdn = $cn_parts[0];
                         }
                         else {
                             $groupdn =
