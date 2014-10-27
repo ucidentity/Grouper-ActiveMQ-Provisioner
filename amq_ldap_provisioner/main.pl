@@ -31,12 +31,17 @@ my $log;
 my $activemq;
 my $ldap;
 my $stats_initialized = 0;
+my $done              = 0;
 my $data;
 my $frame;
+my $nextframe;
+my $batchsize = 100;
 
 CMU::CFG::readConfig('configuration.pl');
 Log::Log4perl::init( $CMU::CFG::_CFG{'log'}{'file'} );
 $log = Log::Log4perl->get_logger();
+
+$batchsize = $CMU::CFG::_CFG{'batchsize'};
 
 while (1) {
 	eval {
@@ -44,7 +49,9 @@ while (1) {
 		if ( defined $activemq ) {
 			$frame = $activemq->getStomp()->receive_frame( { timeout => 30 } );
 			while ($frame) {
-				$mesg = $frame->body;
+				$mesg      = $frame->body;
+				$nextframe =
+				  $activemq->getStomp()->receive_frame( { timeout => 30 } );
 				if ( defined $mesg ) {
 					$log->debug("Received ActiveMQ message: $mesg");
 					$data = JSON::decode_json($mesg);
@@ -72,22 +79,42 @@ while (1) {
 
 						if ( $data->{"operation"} eq "fullSync" ) {
 							$activemq->processMessageFullSync( $ldap, $data );
+						}elsif ( $data->{"operation"} eq "fullSyncPrivilege" ) {
+							$activemq->processMessageFullSyncPrivilege( $ldap, $data );
 						}
 						elsif ( $data->{"operation"} eq "fullSyncIsMemberOf" ) {
 							$activemq->processMessageFullSyncIsMemberOf( $ldap,
 								$data );
 						}
-						else {
+						elsif ($data->{"operation"} ne "addMember"
+							&& $data->{"operation"} ne "removeMember" )
+						{
 							$activemq->processMessageChangeLog( $ldap, $data );
+							$activemq->getStomp()->ack( { frame => $frame } );
+							$log->debug(
+"Successfully processed  ActiveMQ message: $mesg"
+							);
 						}
+						else {
+							$done =
+							  $activemq->addMessageChangeLogToBatch( $ldap,
+								$frame, $nextframe );
 
-						$log->debug(
-							"Successfully processed  ActiveMQ message: $mesg");
-						$activemq->getStomp()->ack( { frame => $frame } );
-						$frame =
-						  $activemq->getStomp()
-						  ->receive_frame( { timeout => 30 } );
+							my @unacked_frames = $activemq->getUnAckedFrames();
 
+							if ( $done || $#unacked_frames == $batchsize ) {
+								$activemq->processMessageChangeLogBatch($ldap);
+								$activemq->getStomp()
+								  ->ack( { frame => $frame } );
+								$log->debug(
+									"Successfully processed  ActiveMQ message: "
+									  . $mesg );
+
+								$done = 0;
+								$activemq->resetChangeLogBatch();
+							}
+						}
+						$frame = $nextframe;
 					}
 				}
 			}
@@ -102,22 +129,30 @@ while (1) {
 				$ldap->disconnect();
 			}
 		}
+
+		if ($@) {
+			my @unacked_frames = $activemq->getUnAckedFrames();
+			if (@unacked_frames) {
+				foreach (@unacked_frames) {
+					$mesg = $_->body;
+					$log->debug(
+						"Couldn't process ActiveMQ message: $mesg .. Retrying");
+				}
+			}
+			else {
+				$log->debug(
+					"Couldn't process ActiveMQ message: $mesg .. Retrying");
+			}
+
+			if ( defined $activemq ) {
+				$activemq->disconnect();
+			}
+
+			if ( defined $ldap ) {
+				$ldap->disconnect();
+			}
+			sleep 30;
+		}
 	};
-
-	if ($@) {
-		if ( defined $mesg ) {
-			$log->error(
-				"Couldn't process ActiveMQ message: $mesg .. Retrying" );
-		}
-
-		if ( defined $activemq ) {
-			$activemq->disconnect();
-		}
-
-		if ( defined $ldap ) {
-			$ldap->disconnect();
-		}
-		sleep 30;
-	}
 }
 
