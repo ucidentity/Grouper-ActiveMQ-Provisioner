@@ -37,7 +37,13 @@ public class ConfigurationEntry {
 
 	private static final String ADD_MEMBER = "addMember";
 	
+	private static final String ADD_PRIVILEGE = "addPrivilege";
+	
+	private static final String REMOVE_PRIVILEGE = "removePrivilege";
+	
 	private static final String FULL_SYNC = "fullSync";
+	
+	private static final String FULL_SYNC_PRIVILEGE = "fullSyncPrivilege";
 	
 	private static final String REMOVE_GROUP_IS_MEMBEROF = "deleteGroupIsMemberOf";
 
@@ -109,7 +115,7 @@ public class ConfigurationEntry {
 	}
 
 	private boolean validOp(String op) {
-		return (op.equalsIgnoreCase(ADD_MEMBER) || op.equalsIgnoreCase(REMOVE_MEMBER) || op.equalsIgnoreCase(CREATE_GROUP) || op.equalsIgnoreCase(UPDATE_GROUP) || op.equalsIgnoreCase(REMOVE_GROUP) || op.equalsIgnoreCase(RENAME_GROUP) || op.equalsIgnoreCase(FULL_SYNC) || op.equalsIgnoreCase(ADD_IS_MEMBEROF) || op.equalsIgnoreCase(REMOVE_IS_MEMBEROF) ||  op.equalsIgnoreCase(FULL_SYNC_IS_MEMBEROF) || op.equalsIgnoreCase(REMOVE_GROUP_IS_MEMBEROF));
+		return (op.equalsIgnoreCase(ADD_MEMBER) || op.equalsIgnoreCase(REMOVE_MEMBER) || op.equalsIgnoreCase(CREATE_GROUP) || op.equalsIgnoreCase(UPDATE_GROUP) || op.equalsIgnoreCase(REMOVE_GROUP) || op.equalsIgnoreCase(RENAME_GROUP) || op.equalsIgnoreCase(FULL_SYNC) || op.equalsIgnoreCase(ADD_IS_MEMBEROF) || op.equalsIgnoreCase(REMOVE_IS_MEMBEROF) ||  op.equalsIgnoreCase(FULL_SYNC_IS_MEMBEROF) || op.equalsIgnoreCase(REMOVE_GROUP_IS_MEMBEROF) || op.equalsIgnoreCase(ADD_PRIVILEGE) || op.equalsIgnoreCase(REMOVE_PRIVILEGE) || op.equalsIgnoreCase(FULL_SYNC_PRIVILEGE));
 	}
 
 	public String toString() {
