@@ -89,7 +89,7 @@ sub getPdc {
 sub getSAMAccountNameFromLdapEntry {
 	my ( $self, $entry ) = @_;
 	$log->debug(
-		"Calling CMU::LDAP::getSAMAccountNameFromLdapEntry( self, ldapentry)");
+		"Calling CMU::LDAP::AD::getSAMAccountNameFromLdapEntry( self, ldapentry)");
 		
 	my $samaccountname = $entry->get_value("sAMAccountName");
 	$samaccountname =~ s/[\"\[\]:;|=+*?<>\/\\,]/-/g;
@@ -99,7 +99,7 @@ sub getSAMAccountNameFromLdapEntry {
 sub getSAMAccountNameFromGroupName {
 	my ( $self, $groupname ) = @_;
 	$log->debug(
-		"Calling CMU::LDAP::getSAMAccountNameFromGroupName( self, $groupname)");
+		"Calling CMU::LDAP::AD::getSAMAccountNameFromGroupName( self, $groupname)");
 
 	my $samaccountname = join( ".", reverse split( ":", $groupname ) );
 	$samaccountname =~ s/[\"\[\]:;|=+*?<>\/\\, ]/-/g;
@@ -109,7 +109,7 @@ sub getSAMAccountNameFromGroupName {
 sub updateSAMAccountName {
 	my ( $self, $dn, $samaccountname ) = @_;
 	$log->debug(
-		"Calling CMU::LDAP::updateSAMAccountName(self, $dn, $samaccountname)");
+		"Calling CMU::LDAP::AD::updateSAMAccountName(self, $dn, $samaccountname)");
 
 	my $result;
 	my @attrs = ( $self->{_dnattribute} );

@@ -318,7 +318,7 @@ sub createGroup {
 	my $entry = Net::LDAP::Entry->new($dn);
 	my $cn    = $self->{_amqmesg}->{"name"};
 
-	if ( $description ne '' ) {
+	if ( defined $description && $description ne '' ) {
 		$entry->add(
 			'objectClass' => [ 'top', 'groupOfNames' ],
 			'cn'          => $cn,
@@ -369,6 +369,17 @@ sub getGroupDn {
 	$log->debug( "groupname " . $groupname . " converted to DN " . $dn );
 	return $dn;
 }
+
+sub getMemberDnForUnresolvable {
+	my ( $self, $uid ) = @_;
+	$log->debug("Calling CMU::LDAP::389::getMemberDnForUnresolvable(self, $uid)");
+
+	my $dn =  $self->{_memberprefix} . $uid . "," . "OU=AndrewPerson," . $self->{_peoplebase};
+
+	$log->debug( "uid " . $uid . " converted to DN " . $dn );
+	return $dn;
+}
+
 
 sub constructMemberDnFromUid {
 	my ( $self, $uid ) = @_;

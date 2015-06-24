@@ -113,15 +113,18 @@ sub connect {
 			{
 				hosts => [
 					{
-						hostname => $self->{_primary},
-						port     => $self->{_port}
+						hostname    => $self->{_primary},
+						port        => $self->{_port},
+						ssl         => 1,
+						ssl_options => { SSL_verify_mode => 0 }
 					},
 					{
-						hostname => $self->{_secondary},
-						port     => $self->{_port}
-					},
-				],
-				ssl => 1
+						hostname    => $self->{_secondary},
+						port        => $self->{_port},
+						ssl         => 1,
+						ssl_options => { SSL_verify_mode => 0 }
+					}
+				]
 			}
 		);
 	};
@@ -189,7 +192,6 @@ sub processMessageChangeLogBatch {
 		my @ldapmembers     = ();
 		my @add_memberdn    = ();
 		my @remove_memberdn = ();
-		my %hashldapmembers = ();
 
 		if ( defined $self->{_addmember} || defined $self->{_removemember} ) {
 			$groupdn = $ldap->getGroupDn( $self->{_groupname} );
@@ -217,51 +219,77 @@ sub processMessageChangeLogBatch {
 					@ldapmembers = $ldap->getGroupMembers($entry);
 				}
 
-				my %hashldapmembers =
-				  CMU::Util::covertMemberDNListToMembersUidHash(
-					$ldap->getLdapTargetName(), @ldapmembers );
-
-				my @ldapmembers =
-				  CMU::Util::covertMemberDNListToMembersUidList(
-					$ldap->getLdapTargetName(), @ldapmembers );
-
-				my @add_members =
-				  CMU::Util::arrayMinus( $self->{_addmember}, \@ldapmembers );
-
-				foreach (@add_members) {
+				my %add_memberdn_seen;
+				foreach ( @{ $self->{_addmember} } ) {
 					my $memberdn = $ldap->getMemberDn($_);
 					if ( defined $memberdn ) {
+						next if $add_memberdn_seen{$memberdn}++;
 						push( @add_memberdn, $memberdn );
 					}
 					else {
-						$log->info( "Skipping add member to "
-							  . $groupdn
+						$log->info( "Skipping add member to " . $groupdn
 							  . " as member "
 							  . $_
 							  . " doesn't exist " );
 					}
 				}
-				if (@add_memberdn) {
-					$ldap->bulkGroupMemberAdd( \@add_memberdn,
-						$groupdn );
-				}
 
-				foreach (@{$self->{_removemember}}) {
-					my $memberdn = $hashldapmembers{$_};
+				my %remove_memberdn_seen;
+				foreach ( @{ $self->{_removemember} } ) {
+					my $memberdn = $ldap->getMemberDn($_);
 					if ( defined $memberdn ) {
+						next if $remove_memberdn_seen{$memberdn}++;
 						push( @remove_memberdn, $memberdn );
 					}
 					else {
-						$log->info( "Skipping remove member from "
-								  . $groupdn
+						if ( $CMU::CFG::_CFG{'ldap'}{'env'} eq "389" ) {
+							if ( $_ =~ /:/ ) {
+								push( @remove_memberdn, $ldap->getGroupDn($_) );
+							}
+							else {
+								push( @remove_memberdn,
+									$ldap->getMemberDnForUnresolvable($_) );
+							}
+						}
+						else {
+							$log->info(
+								    "Skipping remove member from " . $groupdn
 								  . " as uid "
 								  . $_
 								  . " doesn't exist" );
+						}
 					}
 				}
-				if (@remove_memberdn) {
-					$ldap->bulkGroupMemberRemove( \@remove_memberdn,
-						$groupdn );
+
+				$_ = lc for @add_memberdn;
+				$_ = lc for @ldapmembers;
+				$_ = lc for @remove_memberdn;
+			
+				my @add_members =
+				  CMU::Util::arrayMinus( \@add_memberdn, \@ldapmembers );
+
+				my @remove_members =
+				  CMU::Util::arrayMinus( \@remove_memberdn, \@ldapmembers );
+
+				if (@add_members) {
+					$ldap->bulkGroupMemberAdd( \@add_members, $groupdn );
+				}
+
+				if (@remove_members) {
+
+					#finding members to remove that exist in group
+					my @remove =
+					  CMU::Util::arrayMinus( \@remove_memberdn,
+						\@remove_members );
+					if (@remove) {
+						$ldap->bulkGroupMemberRemove( \@remove, $groupdn );
+					}
+				}
+				else {
+					if (@remove_memberdn) {
+						$ldap->bulkGroupMemberRemove( \@remove_memberdn,
+							$groupdn );
+					}
 				}
 			}
 		}
@@ -287,24 +315,24 @@ sub addMessageChangeLogToBatch {
 	$log->debug(
 "Calling CMU::ActiveMQ::addChangelogMessageToBatch(self, ldap, frame, nextframe)"
 	);
-	
+
 	my $done = 0;
 	my $nextmesg;
 	my $nextdata;
 	my $mesg;
 	my $data;
-	
+
 	eval {
-		$mesg = $frame->body;
-		$data = JSON::decode_json($mesg);
-		$self->{_frame}     = $frame;
-			
+		$mesg           = $frame->body;
+		$data           = JSON::decode_json($mesg);
+		$self->{_frame} = $frame;
+
 		if ( defined $nextframe ) {
-		
+
 			$self->{_nextframe} = $nextframe;
-			$nextmesg = $nextframe->body;
-			$nextdata = JSON::decode_json($nextmesg);
-			
+			$nextmesg           = $nextframe->body;
+			$nextdata           = JSON::decode_json($nextmesg);
+
 			if (   $data->{"name"} ne $nextdata->{"name"}
 				|| $data->{"operation"} ne $nextdata->{"operation"} )
 			{
@@ -314,16 +342,15 @@ sub addMessageChangeLogToBatch {
 		else {
 			$done = 1;
 		}
-		
-		$self->{_groupname} =  $data->{"name"};
+
+		$self->{_groupname} = $data->{"name"};
 		if ( $data->{"operation"} eq "addMember" ) {
 			push( @{ $self->{_addmember} },   $data->{"memberId"} );
 			push( @{ $self->{_unackframes} }, $frame );
 		}
 		else {
-			push( @{ $self->{_removemember} },
-				$data->{"memberId"} );
-			push( @{ $self->{_unackframes} }, $frame );
+			push( @{ $self->{_removemember} }, $data->{"memberId"} );
+			push( @{ $self->{_unackframes} },  $frame );
 		}
 	};
 	if ($@) {
@@ -453,8 +480,9 @@ sub processMessageChangeLog {
 					$ldap->removeIsMemberOf( $memberdn, $groupdn );
 				}
 			}
-		}elsif ( $data->{"operation"} eq "addPrivilege" ) {
-					my $memberdn = $ldap->getMemberDn( $data->{"memberId"} );
+		}
+		elsif ( $data->{"operation"} eq "addPrivilege" ) {
+			my $memberdn = $ldap->getMemberDn( $data->{"memberId"} );
 			if ( defined $memberdn ) {
 				$ldap->addGroupOwner( $memberdn, $groupdn );
 			}
@@ -471,14 +499,16 @@ sub processMessageChangeLog {
 				$ldap->removeGroupOwner( $memberdn, $groupdn );
 			}
 			else {
-				if ($self->{_env} eq "389") {
-					$memberdn =  $ldap->constructMemberDnFromUid( $data->{"memberId"} );
+				if ( $self->{_env} eq "389" ) {
+					$memberdn =
+					  $ldap->constructMemberDnFromUid( $data->{"memberId"} );
 					$ldap->removeGroupOwner( $memberdn, $groupdn );
-				}else {
+				}
+				else {
 					$log->info( "Skipping remove owner from " . $groupdn
-					  . " as uid "
-					  . $data->{'memberId'}
-					  . " doesn't exist" );
+						  . " as uid "
+						  . $data->{'memberId'}
+						  . " doesn't exist" );
 				}
 			}
 		}
@@ -510,6 +540,10 @@ sub processMessageFullSyncIsMemberOf {
 
 		my $groupdn = $ldap->getGroupDn( $data->{"name"} );
 		@ldapmembers            = $ldap->getUidByIsMemberOf($groupdn);
+		
+		$_ = lc for @groupermembers;
+		$_ = lc for @ldapmembers;
+			
 		@add_ismemberof_members =
 		  CMU::Util::arrayMinus( \@groupermembers, \@ldapmembers );
 
@@ -517,6 +551,10 @@ sub processMessageFullSyncIsMemberOf {
 			my $memberdn = $ldap->getMemberDn($_);
 			if ( defined $memberdn ) {
 				$ldap->addIsMemberOf( $memberdn, $groupdn );
+				$log->error( "FullSyncIsMemberOf adding isMemberOf " . $groupdn
+					  . " to member "
+					  . $memberdn );
+
 			}
 		}
 
@@ -527,6 +565,10 @@ sub processMessageFullSyncIsMemberOf {
 			my $memberdn = $ldap->getMemberDn($_);
 			if ( defined $memberdn ) {
 				$ldap->removeIsMemberOf( $memberdn, $groupdn );
+				$log->error(
+					    "FullSyncIsMemberOf removing isMemberOf " . $groupdn
+					  . " from member "
+					  . $memberdn );
 			}
 		}
 
@@ -553,13 +595,13 @@ sub processMessageFullSyncIsMemberOf {
 }
 
 sub processMessageFullSyncPrivilege {
-	my @grouperowners  = ();
+	my @grouperowners   = ();
 	my @ldapuidmembers  = ();
-	my @ldapowners     = ();
-	my @add_owners     = ();
-	my @remove_owners  = ();
-	my @add_ownerdn    = ();
-	my @remove_ownerdn = ();
+	my @ldapowners      = ();
+	my @add_owners      = ();
+	my @remove_owners   = ();
+	my @add_ownerdn     = ();
+	my @remove_ownerdn  = ();
 	my $addcount        = 0;
 	my $removecount     = 0;
 	my $notfoundadd     = 0;
@@ -568,7 +610,8 @@ sub processMessageFullSyncPrivilege {
 
 	my ( $self, $ldap, $data ) = @_;
 	$log->debug(
-		"Calling CMU::ActiveMQ::processMessageFullSyncPrivilege(self, ldap, data)");
+"Calling CMU::ActiveMQ::processMessageFullSyncPrivilege(self, ldap, data)"
+	);
 
 	eval {
 		if ( defined $data->{"memberList"} )
@@ -593,6 +636,9 @@ sub processMessageFullSyncPrivilege {
 			@ldapowners =
 			  CMU::Util::covertMemberDNListToMembersUidList(
 				$ldap->getLdapTargetName(), @ldapowners );
+				
+			$_ = lc for @grouperowners;
+			$_ = lc for @ldapowners;
 
 			@add_owners =
 			  CMU::Util::arrayMinus( \@grouperowners, \@ldapowners );
@@ -628,7 +674,8 @@ sub processMessageFullSyncPrivilege {
 			}
 		}
 		else {
-				$log->info( "ldap group doesn't exist for grouper group " .  $data->{"name"} );
+			$log->info( "ldap group doesn't exist for grouper group "
+				  . $data->{"name"} );
 		}
 
 		$log->info( "Grouper owners count: "
@@ -644,7 +691,8 @@ sub processMessageFullSyncPrivilege {
 		$log->info( "Remove owners count: "
 			  . $removecount . " for "
 			  . $data->{'name'} );
-		$log->info( "FullsyncPrivilege completed successfully for " . $data->{'name'} );
+		$log->info(
+			"FullsyncPrivilege completed successfully for " . $data->{'name'} );
 
 	};
 	if ($@) {
@@ -653,18 +701,13 @@ sub processMessageFullSyncPrivilege {
 }
 
 sub processMessageFullSync {
-	my @groupermembers  = ();
-	my @ldapuidmembers  = ();
-	my @ldapmembers     = ();
-	my @add_members     = ();
-	my @remove_members  = ();
-	my @add_memberdn    = ();
-	my @remove_memberdn = ();
-	my $addcount        = 0;
-	my $removecount     = 0;
-	my $notfoundadd     = 0;
-	my $notfoundremove  = 0;
-	my %hashldapmembers = ();
+	my @groupermembers   = ();
+	my @groupermembersdn = ();
+	my @ldapuidmembers   = ();
+	my @ldapmembers      = ();
+	my @add_members      = ();
+	my @remove_members   = ();
+	my $notfound         = 0;
 
 	my ( $self, $ldap, $data ) = @_;
 	$log->debug(
@@ -701,45 +744,62 @@ sub processMessageFullSync {
 				@ldapmembers = $ldap->getGroupMembers($entry);
 			}
 
-			%hashldapmembers =
-			  CMU::Util::covertMemberDNListToMembersUidHash(
-				$ldap->getLdapTargetName(), @ldapmembers );
-
-			@ldapmembers =
-			  CMU::Util::covertMemberDNListToMembersUidList(
-				$ldap->getLdapTargetName(), @ldapmembers );
-
-			@add_members =
-			  CMU::Util::arrayMinus( \@groupermembers, \@ldapmembers );
-
-			foreach (@add_members) {
+			foreach (@groupermembers) {
 				my $memberdn = $ldap->getMemberDn($_);
 				if ( defined $memberdn ) {
-					$addcount++;
-					push( @add_memberdn, $memberdn );
+					push( @groupermembersdn, $memberdn );
 				}
 				else {
-					$notfoundadd++;
+					$notfound++;
 				}
 			}
+
+			$_ = lc for @groupermembersdn;
+			$_ = lc for @ldapmembers;
+			
+			@add_members =
+			  CMU::Util::arrayMinus( \@groupermembersdn, \@ldapmembers );
 
 			@remove_members =
-			  CMU::Util::arrayMinus( \@ldapmembers, \@groupermembers );
+			  CMU::Util::arrayMinus( \@ldapmembers, \@groupermembersdn );
+			  
+			if (@remove_members) {
+				my @batch_remove_members = ();
 
-			foreach (@remove_members) {
-				my $memberdn = $hashldapmembers{$_};
-				if ( defined $memberdn ) {
-					$removecount++;
-					push( @remove_memberdn, $memberdn );
+				foreach (@remove_members) {
+					push( @batch_remove_members, $_ );
+
+					if (   @batch_remove_members
+						&& $#batch_remove_members == 499 )
+					{
+						$ldap->bulkGroupMemberRemove( \@batch_remove_members,
+							$groupdn );
+							undef(@batch_remove_members);
+					}
+
+				}
+				if (@batch_remove_members) {
+					$ldap->bulkGroupMemberRemove( \@batch_remove_members,
+						$groupdn );
 				}
 			}
 
-			if (@add_memberdn) {
-				$ldap->bulkGroupMemberAdd( \@add_memberdn, $groupdn );
-			}
+			if (@add_members) {
+				my @batch_add_members = ();
+				foreach (@add_members) {
 
-			if (@remove_memberdn) {
-				$ldap->bulkGroupMemberRemove( \@remove_memberdn, $groupdn );
+					push( @batch_add_members, $_ );
+
+					if ( @batch_add_members && $#batch_add_members == 499 ) {
+						$ldap->bulkGroupMemberAdd( \@batch_add_members,
+							$groupdn );
+							undef(@batch_add_members);
+					}
+				}
+
+				if (@batch_add_members) {
+					$ldap->bulkGroupMemberAdd( \@batch_add_members, $groupdn );
+				}
 			}
 		}
 		else {
@@ -748,21 +808,20 @@ sub processMessageFullSync {
 			foreach (@groupermembers) {
 				my $memberdn = $ldap->getMemberDn($_);
 				if ( defined $memberdn ) {
-					push( @add_memberdn, $memberdn );
-					$addcount++;
+					push( @add_members, $memberdn );
 				}
 				else {
-					$notfoundadd++;
+					$notfound++;
 				}
 
-				if ( @add_memberdn && $#add_memberdn == 1000 ) {
-					$ldap->bulkGroupMemberAdd( \@add_memberdn, $groupdn );
-					undef(@add_memberdn);
+				if ( @add_members && $#add_members == 499 ) {
+					$ldap->bulkGroupMemberAdd( \@add_members, $groupdn );
+					undef(@add_members);
 				}
 			}
 
-			if (@add_memberdn) {
-				$ldap->bulkGroupMemberAdd( \@add_memberdn, $groupdn );
+			if (@add_members) {
+				$ldap->bulkGroupMemberAdd( \@add_members, $groupdn );
 			}
 		}
 
@@ -771,14 +830,11 @@ sub processMessageFullSync {
 			  . $data->{'name'} );
 		$log->info(
 			"LDAP members count: " . scalar @ldapmembers . " for " . $groupdn );
+		$log->info( "Add members count: "
+			  . scalar @add_members . " for "
+			  . $data->{'name'} );
 		$log->info(
-			"Add members count: " . $addcount . " for " . $data->{'name'} );
-		$log->info( "Add members not found count: "
-			  . $notfoundadd . " for "
-			  . $data->{'name'} );
-		$log->info( "Remove members count: "
-			  . $removecount . " for "
-			  . $data->{'name'} );
+			"Grouper members not resolved in ldap count: " . $notfound );
 		$log->info( "Fullsync completed successfully for " . $data->{'name'} );
 
 	};

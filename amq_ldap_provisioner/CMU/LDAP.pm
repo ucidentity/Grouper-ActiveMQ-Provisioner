@@ -495,13 +495,13 @@ sub bulkGroupMemberAdd {
 		"Calling CMU::LDAP::bulkGroupMemberAdd(self, memberdn, $groupdn)");
 
 	my $result;
-	my @attrs = ( $self->{_dnattribute} );
+	my @attrs = ( $self->{_dnattribute});
 	my $entry =
 	  $self->getLdapEntry( "(objectClass=" . $self->{_groupobjectclass} . ")",
 		\@attrs, $groupdn );
 
 	if ( defined $entry ) {
-		$entry->add( 'member' => [@$memberdn] );
+		$entry->add( 'member' => [@$memberdn]);
 
 		$result = $self->ldapUpdate($entry);
 		my $out = Dumper $memberdn;
@@ -544,7 +544,7 @@ sub bulkGroupMemberRemove {
 		"Calling CMU::LDAP::bulkGroupMemberRemove(self, memberdn, $groupdn)");
 
 	my $result;
-	my @attrs = ( $self->{_dnattribute} );
+	my @attrs = ( $self->{_dnattribute});
 	my $entry =
 	  $self->getLdapEntry( "(objectClass=" . $self->{_groupobjectclass} . ")",
 		\@attrs, $groupdn );

@@ -51,7 +51,7 @@ while (1) {
 			while ($frame) {
 				$mesg      = $frame->body;
 				$nextframe =
-				  $activemq->getStomp()->receive_frame( { timeout => 30 } );
+				  $activemq->getStomp()->receive_frame( { timeout => 0.5 } );
 				if ( defined $mesg ) {
 					$log->debug("Received ActiveMQ message: $mesg");
 					$data = JSON::decode_json($mesg);
@@ -79,12 +79,24 @@ while (1) {
 
 						if ( $data->{"operation"} eq "fullSync" ) {
 							$activemq->processMessageFullSync( $ldap, $data );
+							$activemq->getStomp()->ack( { frame => $frame } );
+							$log->debug(
+"Successfully processed  ActiveMQ message: $mesg"
+							);
 						}elsif ( $data->{"operation"} eq "fullSyncPrivilege" ) {
 							$activemq->processMessageFullSyncPrivilege( $ldap, $data );
+							$activemq->getStomp()->ack( { frame => $frame } );
+							$log->debug(
+"Successfully processed  ActiveMQ message: $mesg"
+							);
 						}
 						elsif ( $data->{"operation"} eq "fullSyncIsMemberOf" ) {
 							$activemq->processMessageFullSyncIsMemberOf( $ldap,
 								$data );
+								$activemq->getStomp()->ack( { frame => $frame } );
+							$log->debug(
+"Successfully processed  ActiveMQ message: $mesg"
+							);
 						}
 						elsif ($data->{"operation"} ne "addMember"
 							&& $data->{"operation"} ne "removeMember" )
@@ -104,11 +116,16 @@ while (1) {
 
 							if ( $done || $#unacked_frames == $batchsize ) {
 								$activemq->processMessageChangeLogBatch($ldap);
-								$activemq->getStomp()
-								  ->ack( { frame => $frame } );
+								
+								foreach my $unacked_frame (@unacked_frames){
+    								$activemq->getStomp()
+								  ->ack( { frame => $unacked_frame } );
+								  $mesg = $unacked_frame->body;
 								$log->debug(
 									"Successfully processed  ActiveMQ message: "
 									  . $mesg );
+								}
+								
 
 								$done = 0;
 								$activemq->resetChangeLogBatch();
