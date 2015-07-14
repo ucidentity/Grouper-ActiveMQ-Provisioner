@@ -58,12 +58,14 @@ public class ConfigurationEntry {
 	private String queue;
 
 	private String operations;
+	
+	private String entryType;
 
 	private List<String> operationsList = new ArrayList<String>();
 
 	private String format;
 
-	public ConfigurationEntry(String group, String queue, String operations, String format) throws BadConfigurationException {
+	public ConfigurationEntry(String entryType, String group, String queue, String operations, String format) throws BadConfigurationException {
 		if (group != null) {
 			this.group = group.toLowerCase();
 		} else {
@@ -76,6 +78,8 @@ public class ConfigurationEntry {
 		} else {
 			this.format = "xml";
 		}
+		
+		this.entryType = entryType;
 		validateOperations();
 		validateFormat();
 	}
@@ -124,6 +128,13 @@ public class ConfigurationEntry {
 
 	public String getGroup() {
 		return group;
+	}
+	
+	public boolean isInclude(){
+		if (this.entryType.equals("+")) 
+			return true;
+		else
+			return false;
 	}
 
 	public void setGroup(String group) {
