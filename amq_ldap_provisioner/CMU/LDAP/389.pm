@@ -359,53 +359,53 @@ sub createGroup {
 }
 
 
--sub renameGroup {
--	my ( $self, $olddn, $groupName ) = @_;
--	$log->debug("Calling CMU::LDAP::389::renameGroup(self, $olddn, $groupName)");
--
--	my $result;
--	my @attrs = ( $self->{_dnattribute} );
--	my $entry =
--	  $self->getLdapEntry( "(objectClass=" . $self->{_groupobjectclass} . ")",
--		\@attrs, $olddn );
--	$log->debug("in renameGroup. Right after getLdapEntry");
--	if ( defined $entry ) {
--		$log->debug("in renameGroup after defined entry. The entry is: " .  $entry->attributes . " " . $entry->changetype . " " . $entry->dn);
--		$entry->changetype( 'moddn' );
--		$log->debug("in renameGroup after defined entry added changetype. The entry is: " .  $entry->attributes . " " . $entry->changetype . " " . $entry->dn);
--		$entry->add ( 'newrdn' => "cn" . "$groupName" );
--		$log->debug("in renameGroup after defined entry added newrdn. The entry is: " .  $entry->attributes . " " . $entry->changetype . " " . $entry->dn);
--		$entry->add ( 'deleteoldrdn' => '1' );
--		$log->debug("in renameGroup after defined entry added deleteoldrdn. The entry is: " .  $entry->attributes . " " . $entry->changetype . " " . $entry->dn);
--
--		$result = $self->ldapUpdate($entry);
--
--		$log->debug("after ldapUpdate");
--		if ( $result->code ) {
--				$log->error(
--					    "CMU::LDAP::389::renameGroup returned with error name: "
--					  . ldap_error_name( $result->code )
--					  . ", error description: "
--					  . ldap_error_desc( $result->code )
--					  . ", changetype: "
--					  . $entry->changetype()
--					  . ", ldif: "
--					  . $entry->ldif() );
--				die();
--		}
--		else {
--			$log->info( "Renamed 389 group " . $olddn . " with " . $newrdn);
--		}
--	
--	}
--	else {
--		$log->info("Skipping renameGroup as ldapentry " . $olddn . " not found ");
--	}
--	
--
--	return $result;
--}
--
+sub renameGroup {
+	my ( $self, $olddn, $groupName ) = @_;
+	$log->debug("Calling CMU::LDAP::389::renameGroup(self, $olddn, $groupName)");
+
+	my $result;
+	my @attrs = ( $self->{_dnattribute} );
+	my $entry =
+	  $self->getLdapEntry( "(objectClass=" . $self->{_groupobjectclass} . ")",
+		\@attrs, $olddn );
+	$log->debug("in renameGroup. Right after getLdapEntry");
+	if ( defined $entry ) {
+		$log->debug("in renameGroup after defined entry. The entry is: " .  $entry->attributes . " " . $entry->changetype . " " . $entry->dn);
+		$entry->changetype( 'moddn' );
+		$log->debug("in renameGroup after defined entry added changetype. The entry is: " .  $entry->attributes . " " . $entry->changetype . " " . $entry->dn);
+		$entry->add ( 'newrdn' => "cn" . "$groupName" );
+		$log->debug("in renameGroup after defined entry added newrdn. The entry is: " .  $entry->attributes . " " . $entry->changetype . " " . $entry->dn);
+		$entry->add ( 'deleteoldrdn' => '1' );
+		$log->debug("in renameGroup after defined entry added deleteoldrdn. The entry is: " .  $entry->attributes . " " . $entry->changetype . " " . $entry->dn);
+
+		$result = $self->ldapUpdate($entry);
+
+		$log->debug("after ldapUpdate");
+		if ( $result->code ) {
+				$log->error(
+					    "CMU::LDAP::389::renameGroup returned with error name: "
+					  . ldap_error_name( $result->code )
+					  . ", error description: "
+					  . ldap_error_desc( $result->code )
+					  . ", changetype: "
+					  . $entry->changetype()
+					  . ", ldif: "
+					  . $entry->ldif() );
+				die();
+		}
+		else {
+			$log->info( "Renamed 389 group " . $olddn . " with " . $newrdn);
+		}
+	
+	}
+	else {
+		$log->info("Skipping renameGroup as ldapentry " . $olddn . " not found ");
+	}
+	
+
+	return $result;
+}
+
 
 
 sub getGroupDn {

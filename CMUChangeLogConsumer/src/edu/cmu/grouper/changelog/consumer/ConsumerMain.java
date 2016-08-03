@@ -57,7 +57,7 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 			.getLog(edu.cmu.grouper.changelog.consumer.ConsumerMain.class);
 	private GrouperSession gs;
 	private ActiveMQConnectionFactory connectionFactory;
-	private static Connection connection;
+	private static Connection connection;	
 
 	/**
 	 * @see ChangeLogConsumerBase#processChangeLogEntries(List,
