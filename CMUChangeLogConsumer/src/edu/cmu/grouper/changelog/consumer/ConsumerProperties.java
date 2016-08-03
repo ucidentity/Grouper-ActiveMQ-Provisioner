@@ -171,7 +171,7 @@ public class ConsumerProperties {
                                 log.error("maxMembers not found in properties file. Seting to infinite or -1.");
 			} else {
 			 	maxMembers = Integer.parseInt(configValues.getProperty("maxMembers"));
-			        log.debug("maxMembers is: "  maxMembers);
+			        log.debug("maxMembers is: " +  maxMembers);
             }
 						
 			log.info("Read ConsumerProperties config file \"" + configURL + "\" successfully");
