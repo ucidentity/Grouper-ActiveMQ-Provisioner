@@ -321,7 +321,7 @@ public enum Configuration {
 					depth = -1;
 				} else {
 					Collection<String> trees = origTree.getSuccessors("*");
-					log.debug("In else. The tree successors are:  "  trees.toString());
+					log.debug("In else. The tree successors are:  " + trees.toString());
 					if (trees.size() >= 1) {
 						for ( String node : trees ){
 							if (arrGroupParts[arrGroupParts.length - 1].matches(node)){
