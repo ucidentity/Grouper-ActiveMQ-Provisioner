@@ -385,7 +385,7 @@ sub constructMemberDnFromUid {
 	my ( $self, $uid ) = @_;
 	$log->debug("Calling CMU::LDAP::389::constructMemberDnFromUid(self, $uid)");
 
-	my $memberdn = join( "=", "uid", $uid . ",ou=AndrewPerson,dc=andrew,dc=cmu,dc=edu");
+	my $memberdn = join( "=", "uid", $uid . ",ou=people,dc=berkeley,dc=edu");
 
 	$log->debug( "uid " . $uid . " converted to DN " . $memberdn );
 	return $memberdn;
@@ -400,11 +400,11 @@ sub addIsMemberOf {
 	my @attrs = ("dn");
 	my $entry =
 	  $self->getLdapEntry(
-		"!(isMemberOf=" . escape_filter_value($groupdn) . ")",
+		"!(berkeleyEduIsMemberOf=" . escape_filter_value($groupdn) . ")",
 		\@attrs, $memberdn );
 
 	if ( defined $entry ) {
-		$entry->add( 'isMemberOf' => [$groupdn] );
+		$entry->add( 'berkeleyEduIsMemberOf' => [$groupdn] );
 
 		$result = $self->ldapUpdate($entry);
 
@@ -412,7 +412,7 @@ sub addIsMemberOf {
 			if ( ldap_error_name( $result->code ) eq
 				"LDAP_TYPE_OR_VALUE_EXISTS" )
 			{
-				$log->info( " isMemberOf " . $groupdn
+				$log->info( " berkeleyEduIsMemberOf " . $groupdn
 					  . " for uid "
 					  . $memberdn
 					  . " already exists" );
@@ -433,7 +433,7 @@ sub addIsMemberOf {
 		}
 		else {
 			$log->info(
-				"Added isMemberOf " . $groupdn . " for uid " . $memberdn );
+				"Added berkeleyEduIsMemberOf " . $groupdn . " for uid " . $memberdn );
 		}
 	}
 	else {
@@ -455,11 +455,11 @@ sub removeIsMemberOf {
 	my $result;
 	my @attrs = ("dn");
 	my $entry =
-	  $self->getLdapEntry( "(isMemberOf=" . escape_filter_value($groupdn) . ")",
+	  $self->getLdapEntry( "(berkeleyEduIsMemberOf=" . escape_filter_value($groupdn) . ")",
 		\@attrs, $memberdn );
 
 	if ( defined $entry ) {
-		$entry->delete( 'isMemberOf' => [$groupdn] );
+		$entry->delete( 'berkeleyEduIsMemberOf' => [$groupdn] );
 
 		my $result = $self->ldapUpdate($entry);
 
@@ -477,7 +477,7 @@ sub removeIsMemberOf {
 		}
 		else {
 			$log->info(
-				"Removed isMemberOf " . $groupdn . " for uid " . $memberdn );
+				"Removed berkeleyEduIsMemberOf " . $groupdn . " for uid " . $memberdn );
 		}
 	}
 	else {
@@ -502,7 +502,7 @@ sub getUidByIsMemberOf {
 
 	eval {
 		$result = $self->ldapSearch(
-			"&(isMemberOf="
+			"&(berkeleyEduIsMemberOf="
 			  . escape_filter_value($groupdn)
 			  . ")(objectClass=cmuAccountPerson)",
 			\@attrs, $self->{_peoplebase}
@@ -519,7 +519,7 @@ sub getUidByIsMemberOf {
 	}
 
 	$log->debug(
-		"Found " . $memberscount . " isMemberOf for group " . $groupdn );
+		"Found " . $memberscount . " berkeleyEduIsMemberOf for group " . $groupdn );
 	return @members;
 }
 
