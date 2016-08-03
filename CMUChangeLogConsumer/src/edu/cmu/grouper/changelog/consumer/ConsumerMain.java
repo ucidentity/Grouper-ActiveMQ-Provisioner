@@ -368,6 +368,43 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 
 		return currentId;
 	}
+	
+	
+	private boolean groupOk (String groupName) {
+		// Check if group membership size ok
+		// If set to -1, nothing to do. No max.
+		if (maxMembers >= 0) {
+	  	    Group group = GroupFinder.findByName(gs, groupName, false);
+		    if (group == null) {
+			LOG.debug("Group " + groupName + " doesn\'t exist");
+			return false;
+	            }
+		    if (group.getMembers().size() <= maxMembers) {
+                        LOG.debug("Group " + groupName + " is okay to provision or add a member."); 
+                        return true;
+		    } else {
+			// Membership too large, so check if part of exceptionStems
+			if (exceptionStems != null) {
+			    for (String stem: exceptionStems) {
+				if (groupName.startsWith(stem)) {
+					LOG.debug("Group " + groupName + " is an exception");
+					return true;
+				}
+			    }
+			} else {
+			   LOG.debug("Group " + groupName + " is too big to provision or add a member.");
+			}
+		    }
+		// nothing to do. Group ok. no max
+		} else {
+		    LOG.debug("Group " + groupName + " is okay to provision or add a member. maxMembers equals -1.");
+		    return true;
+		}	
+		// The group is too large and is not under one of the exception stems
+		return false;
+	} 
+
+	
 
 	private String getGroupAddedMessage(String groupName) {
 		String mesg = "<operation>createGroup</operation>";
