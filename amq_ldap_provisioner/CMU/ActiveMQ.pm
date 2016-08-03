@@ -513,7 +513,42 @@ sub processMessageChangeLog {
 			}
 		}
 		elsif ( $data->{"operation"} eq "renameGroup" ) {
-			$log->info("Rename not handled...Skipping ActiveMQ message");
+-			if (   $data->{"name"} ne ''
+-				&& $data->{"oldname"} ne '' )
+-			{
+-				my $olddn = $ldap->getGroupDn( $data->{"oldname"} );
+-				$ldap->renameGroup($olddn, $data->{"name"} );
+-			}
+-			else {
+-				$log->info( "Skipping rename group for new name " . $data->{"name"}
+-					  . " and old name " . $data->{"oldname"}
+-					  . " as old or new value for group name is empty "
+-				);
+-			}
+		}
+		elsif ( $data->{"operation"} eq "renameGroupIsMemberOf" ) {
+			if (   $data->{"name"} ne ''
+-				&& $data->{"oldname"} ne '' )
+-			{
+-				my $olddn = $ldap->getGroupDn( $data->{"oldname"} );
+				my $newdn = $ldap->getGroupDn( $data->{"name"} );
+				
+				my @ldapmembers = $ldap->getUidByIsMemberOf($olddn);
+
+				foreach (@ldapmembers) {
+					my $memberdn = $ldap->getMemberDn($_);
+					if ( defined $memberdn ) {
+						$ldap->removeIsMemberOf( $memberdn, $olddn );
+						$ldap->addIsMemberOf( $memberdn, $newdn );
+					}
+				}				
+-			}
+-			else {
+	-			$log->info( "Skipping rename group isMemberOf for new name " . $data->{"name"}
+-					  . " and old name " . $data->{"oldname"}
+-					  . " as old or new value for group name is empty "
+-				);
+-			}			
 		}
 	};
 	if ($@) {
