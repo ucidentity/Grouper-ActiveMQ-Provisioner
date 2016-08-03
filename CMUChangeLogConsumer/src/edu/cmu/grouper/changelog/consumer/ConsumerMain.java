@@ -35,6 +35,9 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 
 import edu.internet2.middleware.grouper.Group;
+import edu.internet2.middleware.grouper.Stem;
+import edu.internet2.middleware.grouper.Stem.Scope;
+import edu.internet2.middleware.grouper.StemFinder;
 import edu.internet2.middleware.grouper.GroupFinder;
 import edu.internet2.middleware.grouper.GroupTypeFinder;
 import edu.internet2.middleware.grouper.GrouperSession;
@@ -58,6 +61,11 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 	private GrouperSession gs;
 	private ActiveMQConnectionFactory connectionFactory;
 	private static Connection connection;	
+	// These are Stems that are allowed to provision groups larger than maxMembers
+	private static String[] exceptionStems;
+	// This is the maximum members to allow for a group to be provisioned
+	private static int maxMembers;
+	
 
 	/**
 	 * @see ChangeLogConsumerBase#processChangeLogEntries(List,
@@ -75,6 +83,9 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 		brokerURL = ConsumerProperties.getBrokerUrl();
 		username = ConsumerProperties.getUsername();
 		password = ConsumerProperties.getPassword();
+		exceptionStems = ConsumerProperties.getExceptionStems();
+		maxMembers = ConsumerProperties.getMaxMembers();
+		
 		long currentId = 0;
 
 		for (ChangeLogEntry changeLogEntry : changeLogEntryList) {
@@ -130,8 +141,12 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 						LOG.error("No group name for group add change type. Skipping sequence: "
 								+ currentId);
 					} else {
-						String mesg = getGroupAddedMessage(groupName);
-						writeMessage(mesg, groupName, currentId);
+						if (groupOk(groupName)) {
+							String mesg = getGroupAddedMessage(groupName);
+							writeMessage(mesg, groupName, currentId);
+						} else {
+						   LOG.info ("group " + groupName + " will not be added.");
+						}					
 					}
 				} else if (changeLogEntry
 						.equalsCategoryAndAction(ChangeLogTypeBuiltin.GROUP_UPDATE)) {
@@ -144,30 +159,31 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 						LOG.error("No group name for group update change type. Skipping sequence: "
 								+ currentId);
 					} else {
-						String propertyChanged = changeLogEntry
-								.retrieveValueForLabel(ChangeLogLabels.GROUP_UPDATE.propertyChanged);
-						if (propertyChanged.equals("description")) {
-							String groupOldDescription = changeLogEntry
-									.retrieveValueForLabel(ChangeLogLabels.GROUP_UPDATE.propertyOldValue);
-							if (groupOldDescription == null) {
-								groupOldDescription = "";
+						if (groupOk(groupName)) {
+							String propertyChanged = changeLogEntry
+									.retrieveValueForLabel(ChangeLogLabels.GROUP_UPDATE.propertyChanged);
+							if (propertyChanged.equals("description")) {
+								String groupOldDescription = changeLogEntry
+										.retrieveValueForLabel(ChangeLogLabels.GROUP_UPDATE.propertyOldValue);
+								if (groupOldDescription == null) {
+									groupOldDescription = "";
+								}
+								getGroupUpdatedMessage(groupName, groupDescription,
+										groupOldDescription);
+							} else if (propertyChanged.equals("name")) {
+								String groupOldName = changeLogEntry
+										.retrieveValueForLabel(ChangeLogLabels.GROUP_UPDATE.propertyOldValue);
+								String mesg = getGroupRenamedMessage(groupName, groupOldName);
+								String mesgIsMemberOf = getGroupIsMemberOfRenamedMessage(groupName, groupOldName);
+								writeMessage(mesg, groupName, currentId);
+								writeMessage(mesgIsMemberOf, groupName, currentId);
+							} else {
+								LOG.debug("Skipping sequence "
+										+ changeLogEntry.getSequenceNumber()
+										+ " as group update property: "
+										+ propertyChanged + " is not handled");
 							}
-							getGroupUpdatedMessage(groupName, groupDescription,
-									groupOldDescription);
-						} else if (propertyChanged.equals("name")) {
-							String groupOldName = changeLogEntry
-									.retrieveValueForLabel(ChangeLogLabels.GROUP_UPDATE.propertyOldValue);
-							String mesg = getGroupRenamedMessage(groupName, groupOldName);
-							String mesgIsMemberOf = getGroupIsMemberOfRenamedMessage(groupName, groupOldName);
-							writeMessage(mesg, groupName, currentId);
-							writeMessage(mesgIsMemberOf, groupName, currentId);
-						} else {
-							LOG.debug("Skipping sequence "
-									+ changeLogEntry.getSequenceNumber()
-									+ " as group update property: "
-									+ propertyChanged + " is not handled");
 						}
-
 					}
 				} else if (changeLogEntry
 						.equalsCategoryAndAction(ChangeLogTypeBuiltin.GROUP_DELETE)) {
@@ -193,23 +209,25 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 						LOG.error("No group name for membership add change type. Skipping sequence:"
 								+ currentId);
 					} else {
-						if (member != null) {
-							String memberName = null;
+						if (groupOk(groupName)) {
+							if (member != null) {
+								String memberName = null;
 
-							if (member.getSubjectType().toString()
-									.equals("person")) {
-								memberName = member.getSubjectId();
-								String mesgIsMemberOf = getIsMemberOfAddedMessage(
-										groupName, memberName);
-								writeMessage(mesgIsMemberOf, groupName,
-										currentId);
-							} else {
-								memberName = member.getName();
+								if (member.getSubjectType().toString()
+										.equals("person")) {
+									memberName = member.getSubjectId();
+									String mesgIsMemberOf = getIsMemberOfAddedMessage(
+											groupName, memberName);
+									writeMessage(mesgIsMemberOf, groupName,
+											currentId);
+								} else {
+									memberName = member.getName();
+								}
+
+								String mesg = getGroupMemberAddedMessage(groupName,
+										memberName);
+								writeMessage(mesg, groupName, currentId);
 							}
-
-							String mesg = getGroupMemberAddedMessage(groupName,
-									memberName);
-							writeMessage(mesg, groupName, currentId);
 						}
 					}
 				} else if (changeLogEntry
@@ -223,22 +241,24 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 						LOG.error("No group name for membership delete change type. Skipping sequence: "
 								+ currentId);
 					} else {
-						if (member != null) {
-							String memberName = null;
+						if (groupOk(groupName)) {
+							if (member != null) {
+								String memberName = null;
 
-							if (member.getSubjectType().toString()
-									.equals("person")) {
-								memberName = member.getSubjectId();
-								String mesgIsMemberOf = getIsMemberOfDeletedMessage(
+								if (member.getSubjectType().toString()
+										.equals("person")) {
+									memberName = member.getSubjectId();
+									String mesgIsMemberOf = getIsMemberOfDeletedMessage(
+											groupName, memberName);
+									writeMessage(mesgIsMemberOf, groupName,
+											currentId);
+								} else {
+									memberName = member.getName();
+								}
+								String mesg = getGroupMemberDeletedMessage(
 										groupName, memberName);
-								writeMessage(mesgIsMemberOf, groupName,
-										currentId);
-							} else {
-								memberName = member.getName();
+								writeMessage(mesg, groupName, currentId);
 							}
-							String mesg = getGroupMemberDeletedMessage(
-									groupName, memberName);
-							writeMessage(mesg, groupName, currentId);
 						}
 					}
 				} else if (changeLogEntry
@@ -259,22 +279,24 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 						LOG.error("No group name for privilege add change type. Skipping sequence: "
 								+ currentId);
 					} else {
-						if (member != null) {
-							String memberName = null;
+						if (groupOk(groupName)) {
+							if (member != null) {
+								String memberName = null;
 
-							if (member.getSubjectType().toString()
-									.equals("person")) {
-								memberName = member.getSubjectId();
-								String mesgPrivilegeAdd = getPrivilegeAddedMessage(
-										groupName, memberName);
-								writeMessage(mesgPrivilegeAdd, groupName,
-										currentId);
-							} else {
-								memberName = member.getName();
+								if (member.getSubjectType().toString()
+										.equals("person")) {
+									memberName = member.getSubjectId();
+									String mesgPrivilegeAdd = getPrivilegeAddedMessage(
+											groupName, memberName);
+									writeMessage(mesgPrivilegeAdd, groupName,
+											currentId);
+								} else {
+									memberName = member.getName();
+								}
+								String mesg = getPrivilegeAddedMessage(groupName,
+										memberName);
+								writeMessage(mesg, groupName, currentId);
 							}
-							String mesg = getPrivilegeAddedMessage(groupName,
-									memberName);
-							writeMessage(mesg, groupName, currentId);
 						}
 					}
 				} else if (changeLogEntry
@@ -295,25 +317,26 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 						LOG.error("No group name for privilege add change type. Skipping sequence: "
 								+ currentId);
 					} else {
-						if (member != null) {
-							String memberName = null;
+						if (groupOk(groupName)) {
+							if (member != null) {
+								String memberName = null;
 
-							if (member.getSubjectType().toString()
-									.equals("person")) {
-								memberName = member.getSubjectId();
-								String mesgPrivilegeDelete = getPrivilegeDeletedMessage(
-										groupName, memberName);
-								writeMessage(mesgPrivilegeDelete, groupName,
-										currentId);
-							} else {
-								memberName = member.getName();
+								if (member.getSubjectType().toString()
+										.equals("person")) {
+									memberName = member.getSubjectId();
+									String mesgPrivilegeDelete = getPrivilegeDeletedMessage(
+											groupName, memberName);
+									writeMessage(mesgPrivilegeDelete, groupName,
+											currentId);
+								} else {
+									memberName = member.getName();
+								}
+								String mesg = getPrivilegeDeletedMessage(groupName,
+										memberName);
+								writeMessage(mesg, groupName, currentId);
 							}
-							String mesg = getPrivilegeDeletedMessage(groupName,
-									memberName);
-							writeMessage(mesg, groupName, currentId);
 						}
 					}
-
 				} else {
 					LOG.debug("Skipping sequence: "
 							+ changeLogEntry.getSequenceNumber()
