@@ -157,9 +157,10 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 						} else if (propertyChanged.equals("name")) {
 							String groupOldName = changeLogEntry
 									.retrieveValueForLabel(ChangeLogLabels.GROUP_UPDATE.propertyOldValue);
-							String mesg = getGroupRenamedMessage(groupName,
-									groupOldName);
+							String mesg = getGroupRenamedMessage(groupName, groupOldName);
+							String mesgIsMemberOf = getGroupIsMemberOfRenamedMessage(groupName, groupOldName);
 							writeMessage(mesg, groupName, currentId);
+							writeMessage(mesgIsMemberOf, groupName, currentId);
 						} else {
 							LOG.debug("Skipping sequence "
 									+ changeLogEntry.getSequenceNumber()
@@ -376,6 +377,13 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 
 	private String getGroupRenamedMessage(String groupName, String groupOldName) {
 		String mesg = "<operation>renameGroup</operation>";
+		mesg = mesg + "<name><![CDATA[" + groupName + "]]></name>";
+		mesg = mesg + "<oldname><![CDATA[" + groupOldName + "]]></oldname>";
+		return mesg;
+	}
+
+	private String getGroupIsMemberOfRenamedMessage(String groupName, String groupOldName) {
+		String mesg = "<operation>renameGroupIsMemberOf</operation>";
 		mesg = mesg + "<name><![CDATA[" + groupName + "]]></name>";
 		mesg = mesg + "<oldname><![CDATA[" + groupOldName + "]]></oldname>";
 		return mesg;
