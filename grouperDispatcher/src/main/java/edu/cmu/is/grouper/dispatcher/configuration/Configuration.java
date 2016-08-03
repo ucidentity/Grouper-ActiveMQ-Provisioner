@@ -310,23 +310,31 @@ public enum Configuration {
 
 	public synchronized int getGroupMatchDepth(Tree<String> tree, String queueNameGroupName) {
 		int depth = 0;
+		log.debug("The group and queue we are matching= " + queueNameGroupName);
 		String[] arrGroupParts = queueNameGroupName.toLowerCase().split(":");
 		Tree<String> origTree = tree;
+		boolean found = false;
+		
 		for (int i = 0; i < arrGroupParts.length; i++) {
 			if (origTree.getTree(arrGroupParts[i]) == null) {
 				if ((origTree.getTree("*") == null)) {
 					depth = -1;
 				} else {
 					Collection<String> trees = origTree.getSuccessors("*");
+					log.debug("In else. The tree successors are:  "  trees.toString());
 					if (trees.size() >= 1) {
-						origTree = origTree.getTree("*");
-
-						if (origTree.getTree(arrGroupParts[arrGroupParts.length - 1]) == null) {
-							depth = -1;
-						} else {
-							depth++;
+						for ( String node : trees ){
+							if (arrGroupParts[arrGroupParts.length - 1].matches(node)){
+								found = true;
+								log.debug("In else. We found a match. Node = " + node + " Group name = " + arrGroupParts[arrGroupParts.length - 1]);
 						}
 					}
+					if (found) {
+						depth++;
+					} else {
+						depth = -1;
+					} 
+				}
 					break;
 				}
 			} else {
