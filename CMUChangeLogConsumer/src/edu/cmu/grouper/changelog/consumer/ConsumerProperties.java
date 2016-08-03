@@ -43,6 +43,9 @@ public class ConsumerProperties {
 	private static String password = null;
 	private static String targets = null;
 	private static String usduExcludes = null;
+	private static String exceptionStemsConfig = null;
+	private static int maxMembers = 0;
+
 	
 	public static boolean propertiesOk() {
 		readProperties();
@@ -74,6 +77,33 @@ public class ConsumerProperties {
 		return usduExcludes;
 	}
 	
+	public static String[] getExceptionStems() {
+			String delims = "[,]";
+
+		readProperties();
+		// check for no stems
+		if (exceptionStemsConfig == null) {
+			log.warn ("no exception stems");
+			return null;
+		} else {
+			// Split multiple stems into array
+			String[] exceptionStems = exceptionStemsConfig.split( delims );
+			// Remove * if added
+			for ( int i=0; i< exceptionStems.length; i++ ) { 
+				if (exceptionStems[i].endsWith("*")) {
+					exceptionStems[i] = exceptionStems[i].substring(0, exceptionStems.length - 1);
+				}
+			}
+		       return exceptionStems;
+		}		
+	}
+	
+
+	public static int getMaxMembers() {
+		readProperties();
+		return maxMembers;
+	}
+
 	
 	private static void readProperties() {
 
@@ -131,6 +161,19 @@ public class ConsumerProperties {
 			
 			usduExcludes = configValues.getProperty("usduExcludes");
 			
+			exceptionStemsConfig = configValues.getProperty("exceptionStems");
+			if (exceptionStemsConfig == null) {
+                                log.error("exceptionStems not found in properties file");
+                        }
+
+			if (configValues.getProperty("maxMembers") == null) {
+				maxMembers = -1;
+                                log.error("maxMembers not found in properties file. Seting to infinite or -1.");
+			} else {
+			 	maxMembers = Integer.parseInt(configValues.getProperty("maxMembers"));
+			        log.debug("maxMembers is: "  maxMembers);
+            }
+						
 			log.info("Read ConsumerProperties config file \"" + configURL + "\" successfully");
 
 		} catch (Exception e) {
