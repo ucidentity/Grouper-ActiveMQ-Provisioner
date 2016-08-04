@@ -363,6 +363,7 @@ sub renameGroup {
 	my ( $self, $olddn, $groupName ) = @_;
 	$log->debug("Calling CMU::LDAP::389::renameGroup(self, $olddn, $groupName)");
 
+	my $newrdn = "cn=" . $groupName;
 	my $result;
 	my @attrs = ( $self->{_dnattribute} );
 	my $entry =
@@ -373,7 +374,7 @@ sub renameGroup {
 		$log->debug("in renameGroup after defined entry. The entry is: " .  $entry->attributes . " " . $entry->changetype . " " . $entry->dn);
 		$entry->changetype( 'moddn' );
 		$log->debug("in renameGroup after defined entry added changetype. The entry is: " .  $entry->attributes . " " . $entry->changetype . " " . $entry->dn);
-		$entry->add ( 'newrdn' => "cn" . "$groupName" );
+		$entry->add ( 'newrdn' => "$newrdn" );
 		$log->debug("in renameGroup after defined entry added newrdn. The entry is: " .  $entry->attributes . " " . $entry->changetype . " " . $entry->dn);
 		$entry->add ( 'deleteoldrdn' => '1' );
 		$log->debug("in renameGroup after defined entry added deleteoldrdn. The entry is: " .  $entry->attributes . " " . $entry->changetype . " " . $entry->dn);
