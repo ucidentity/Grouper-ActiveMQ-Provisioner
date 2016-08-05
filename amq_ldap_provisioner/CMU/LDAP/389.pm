@@ -555,7 +555,7 @@ sub getUidByIsMemberOf {
 		$result = $self->ldapSearch(
 			"&(berkeleyEduIsMemberOf="
 			  . escape_filter_value($groupdn)
-			  . ")(objectClass=cmuAccountPerson)",
+			  . ")(objectClass=person)",
 			\@attrs, $self->{_peoplebase}
 		);
 
