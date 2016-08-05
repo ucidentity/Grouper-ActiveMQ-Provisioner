@@ -115,7 +115,7 @@ sub connect {
 					{
 						hostname    => $self->{_primary},
 						port        => $self->{_port},
-						ssl         => 1,
+						ssl         => 0,
 						ssl_options => { SSL_verify_mode => 0 }
 					},
 					{
