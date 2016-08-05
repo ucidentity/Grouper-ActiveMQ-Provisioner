@@ -211,10 +211,10 @@
   </target>
 
   <!-- ====================================================================== -->
-  <!-- Package target                                                         -->
+  <!-- Package target  (normally depends on both compile,test                                                        -->
   <!-- ====================================================================== -->
 
-  <target name="package" depends="compile,test" description="Package the application">
+  <target name="package" depends="compile" description="Package the application">
     <jar jarfile="${maven.build.dir}/${maven.build.finalName}.jar" 
          compress="true" 
          index="false" 

@@ -762,7 +762,20 @@ sub getLdapEntry {
 		}
 	}
 	else {
-		$entry = $result->pop_entry();
+		#$entry = $result->pop_entry();
+		#$entry = $result->entry(0);
+		while ($entry = $result->pop_entry()){
+			$log->debug("Heres the entry dn: ");
+			$log->debug($entry->dn);
+			$log->debug($dn);
+			if ($entry->dn eq $dn) {
+				$log->debug ("The entry has the proper dn: $dn");
+				last;
+			} else {
+			 	$log->debug ("This dn isn't it: $entry->dn");
+				$entry = undef;
+			}
+		}
 
 		if ( defined $entry ) {
 			my $entrydn = $entry->get_value( $self->{_dnattribute} );
