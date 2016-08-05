@@ -26,6 +26,8 @@ public class ChangeLogMessage {
 	String operation;
 
 	String name;
+	
+	String oldname;
 
 	String memberId;
 
@@ -84,6 +86,16 @@ public class ChangeLogMessage {
 	public void setOlddescription(String olddescription) {
 		this.olddescription = olddescription;
 	}
+	
+	@XmlElement
+	public void setOldname(String oldname) {
+		this.oldname = oldname;
+	}
+
+	public String getOldname() {
+		return oldname;
+	}
+	
 
 	public List<String> getMemberList() {
 		return memberList;
