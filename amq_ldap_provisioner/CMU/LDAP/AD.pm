@@ -56,7 +56,8 @@ sub getInstance {
 		$_ad->{_groupprefix}      = $CMU::CFG::_CFG{'AD'}{'groupprefix'};
 		$_ad->{_env}               = $CMU::CFG::_CFG{'ldap'}{'env'};
 		$_ad->{_logtoerrorqueue}   = $CMU::CFG::_CFG{'ldap'}{'logtoerrorqueue'};
-		$_ad->{_server}            = $_ad->getPdc();
+#		$_ad->{_server}            = $_ad->getPdc();
+		$_ad->{_server}		   = $CMU::CFG::_CFG{'AD'}{'server'};		
 		$_ad->{_cache}             = CMU::Cache->new;
 		$_ad->connect();
 
@@ -71,10 +72,20 @@ sub getPdc {
 
 	my $result = Net::DNS::Resolver->new;
 
-	my $query = $result->send( $self->{_dnssrv}, "SRV" );
+	$log->debug("The resolver state after new: " . $result->print);
+	#my $query = $result->send( $self->{_dnssrv}, "SRV" );
+	my $query = $result->send( $self->{_dnssrv});
+	$log->debug("The resolver state after send: " . $result->print);
+	$log->debug("The resolver state after send as a string: " . $result->string);
+	
+	$log->debug("The query answer: " . $query->answer);
+	
 	if ($query) {
 		foreach my $rr ( $query->answer ) {
-			next unless $rr->type eq 'SRV';
+			$log->debug("The query answer inside foreach: " . $query->answer);
+			$log->debug("The rr type: " . $rr->type);
+			next unless $rr->type eq 'A';
+			$log->debug("The rr target: " . $rr->target);
 			return $rr->target;
 		}
 		$log->error("SRV lookup failed:");
@@ -101,7 +112,8 @@ sub getSAMAccountNameFromGroupName {
 	$log->debug(
 		"Calling CMU::LDAP::AD::getSAMAccountNameFromGroupName( self, $groupname)");
 
-	my $samaccountname = join( ".", reverse split( ":", $groupname ) );
+#	my $samaccountname = join( ".", reverse split( ":", $groupname ) );
+	my $samaccountname = (split ":", $groupname )[-1];	
 	$samaccountname =~ s/[\"\[\]:;|=+*?<>\/\\, ]/-/g;
 	return substr($samaccountname, 0, 256);
 }
