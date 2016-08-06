@@ -41,6 +41,7 @@ sub getInstance {
 		CMU::CFG::readConfig('configuration.pl');
 
 		$_389->{_server}           = $CMU::CFG::_CFG{'389'}{'server'};
+		$_389->{_port}           = $CMU::CFG::_CFG{'389'}{'port'};
 		$_389->{_binddn}           = $CMU::CFG::_CFG{'389'}{'binddn'};
 		$_389->{_password}         = $CMU::CFG::_CFG{'389'}{'password'};
 		$_389->{_syncou}           = $CMU::CFG::_CFG{'389'}{'syncou'};
@@ -65,10 +66,20 @@ sub connect {
 
 	my ($self) = @_;
 	$log->debug("Calling CMU::LDAP::389::connect(self)");
+	$log->debug($self->{_server});
+	$log->debug($self->{_port});
+	$log->debug($self->{_binddn});
+	
+	
 
 	eval {
 		$self->{_ldap} =
-		  Net::LDAPS->new( $self->{_server}, port => $self->{_port} );
+		  	Net::LDAPS->new( $self->{_server}, port => $self->{_port} );
+			$log->debug("after LDAP call");
+			#my $mesg = $self->{_ldap}->start_tls();
+			#$log->debug("The result is: $mesg->code");
+			#$log->debug("At the end of eval");
+		
 	};
 
 	if ($@) {
@@ -320,7 +331,7 @@ sub createGroup {
 
 	if ( defined $description && $description ne '' ) {
 		$entry->add(
-			'objectClass' => [ 'top', 'groupOfNames' ],
+			'objectClass' => [ 'top', 'groupOfUniqueNames', 'extensibleObject'],
 			'cn'          => $cn,
 			'description' => $description
 		);
@@ -425,7 +436,7 @@ sub getMemberDnForUnresolvable {
 	my ( $self, $uid ) = @_;
 	$log->debug("Calling CMU::LDAP::389::getMemberDnForUnresolvable(self, $uid)");
 
-	my $dn =  $self->{_memberprefix} . $uid . "," . "OU=AndrewPerson," . $self->{_peoplebase};
+	my $dn =  $self->{_memberprefix} . $uid . "," . $self->{_peoplebase};
 
 	$log->debug( "uid " . $uid . " converted to DN " . $dn );
 	return $dn;
@@ -456,6 +467,11 @@ sub addIsMemberOf {
 
 	if ( defined $entry ) {
 		$entry->add( 'berkeleyEduIsMemberOf' => [$groupdn] );
+		$log->debug("LDAP entry attributes:");
+		$log->debug($entry->attributes);
+		$log->debug($entry->dn);
+		$log->debug($entry->ldif);
+		
 
 		$result = $self->ldapUpdate($entry);
 
