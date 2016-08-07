@@ -51,6 +51,7 @@ sub getInstance {
 		$_ad->{_peoplebase}        = $CMU::CFG::_CFG{'AD'}{'peoplebase'};
 		$_ad->{_groupobjectclass}  = $CMU::CFG::_CFG{'AD'}{'groupobjectclass'};
 		$_ad->{_personobjectclass} = $CMU::CFG::_CFG{'AD'}{'personobjectclass'};
+		$_ad->{_memberattribute}   = $CMU::CFG::_CFG{'AD'}{'memberattribute'};
 		$_ad->{_dnattribute}       = $CMU::CFG::_CFG{'AD'}{'dnattribute'};
 		$_ad->{_memberprefix}      = $CMU::CFG::_CFG{'AD'}{'memberprefix'};
 		$_ad->{_groupprefix}      = $CMU::CFG::_CFG{'AD'}{'groupprefix'};
