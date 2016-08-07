@@ -50,6 +50,7 @@ sub getInstance {
 		$_389->{_groupobjectclass} = $CMU::CFG::_CFG{'389'}{'groupobjectclass'};
 		$_389->{_personobjectclass} =
 		  $CMU::CFG::_CFG{'389'}{'personobjectclass'};
+		$_389->{_memberattribute}  = $CMU::CFG::_CFG{'389'}{'memberattribute'};
 		$_389->{_dnattribute}     = $CMU::CFG::_CFG{'389'}{'dnattribute'};
 		$_389->{_memberprefix}    = $CMU::CFG::_CFG{'389'}{'memberprefix'};
 		$_389->{_groupprefix}    = $CMU::CFG::_CFG{'389'}{'groupprefix'};
@@ -331,14 +332,14 @@ sub createGroup {
 
 	if ( defined $description && $description ne '' ) {
 		$entry->add(
-			'objectClass' => [ 'top', 'groupOfUniqueNames', 'extensibleObject'],
+			'objectClass' => [ 'top', $self->{_groupobjectclass}, 'extensibleObject'],
 			'cn'          => $cn,
 			'description' => $description
 		);
 	}
 	else {
 		$entry->add(
-			'objectClass' => [ 'top', 'groupOfNames' ],
+			'objectClass' => [ 'top', $self->{_groupobjectclass} ],
 			'cn'          => $cn
 		);
 	}
@@ -436,7 +437,7 @@ sub getMemberDnForUnresolvable {
 	my ( $self, $uid ) = @_;
 	$log->debug("Calling CMU::LDAP::389::getMemberDnForUnresolvable(self, $uid)");
 
-	my $dn =  $self->{_memberprefix} . $uid . "," . $self->{_peoplebase};
+	my $dn =  $self->{_memberprefix} . $uid . ",ou=people," . $self->{_peoplebase};
 
 	$log->debug( "uid " . $uid . " converted to DN " . $dn );
 	return $dn;
