@@ -168,8 +168,8 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 								if (groupOldDescription == null) {
 									groupOldDescription = "";
 								}
-								getGroupUpdatedMessage(groupName, groupDescription,
-										groupOldDescription);
+								String mesg = getGroupUpdatedMessage(groupName, groupDescription, groupOldDescription);
+								writeMessage(mesg, groupName, currentId);
 							} else if (propertyChanged.equals("name")) {
 								String groupOldName = changeLogEntry
 										.retrieveValueForLabel(ChangeLogLabels.GROUP_UPDATE.propertyOldValue);
