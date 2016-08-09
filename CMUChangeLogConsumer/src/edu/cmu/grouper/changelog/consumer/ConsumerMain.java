@@ -136,13 +136,15 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 						.equalsCategoryAndAction(ChangeLogTypeBuiltin.GROUP_ADD)) {
 					groupName = changeLogEntry
 							.retrieveValueForLabel(ChangeLogLabels.GROUP_ADD.name);
+					String groupDescription = changeLogEntry
+								.retrieveValueForLabel(ChangeLogLabels.GROUP_ADD.description);
 
 					if (groupName == null) {
 						LOG.error("No group name for group add change type. Skipping sequence: "
 								+ currentId);
 					} else {
 						if (groupOk(groupName)) {
-							String mesg = getGroupAddedMessage(groupName);
+							String mesg = getGroupAddedMessage(groupName, groupDescription);
 							writeMessage(mesg, groupName, currentId);
 						} else {
 						   LOG.info ("group " + groupName + " will not be added.");
@@ -406,9 +408,11 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 
 	
 
-	private String getGroupAddedMessage(String groupName) {
+	private String getGroupAddedMessage(String groupName, String groupDescription) {
 		String mesg = "<operation>createGroup</operation>";
 		mesg = mesg + "<name><![CDATA[" + groupName + "]]></name>";
+		mesg = mesg + "<description><![CDATA[" + groupDescription
+				+ "]]></description>";
 		return mesg;
 	}
 
