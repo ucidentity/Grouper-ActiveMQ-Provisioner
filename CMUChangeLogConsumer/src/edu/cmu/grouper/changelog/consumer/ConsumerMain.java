@@ -792,8 +792,14 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 	}
 
 	private static void syncAllGroups(GrouperSession session) {
-		Set<Group> groups = GroupFinder.findAllByType(session,
-				GroupTypeFinder.find("base", false));
+		LOG.debug("In syncAllGroups");
+		//Set<Group> groups = GroupFinder.findAllByType(session,
+		//		GroupTypeFinder.find("base", false));
+		//Set<Group> groups = GroupFinder.findGroups();
+		Stem stem = StemFinder.findByName(session, "edu:berkeley");
+		Set<Group> groups = stem.getChildGroups(Scope.SUB);
+
+		LOG.debug("Here is the group list: " + groups);
 
 		for (Group group : groups) {
 			LOG.debug("Full sync group: " + group.getName());
