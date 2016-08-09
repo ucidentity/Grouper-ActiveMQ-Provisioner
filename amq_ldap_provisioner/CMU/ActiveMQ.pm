@@ -453,7 +453,7 @@ sub processMessageChangeLog {
 				&& $data->{"olddescription"} ne '' )
 			{
 				$ldap->replaceGroupDescription( $groupdn,
-					$data->{"olddescription"} );
+					$data->{"description"} );
 			}
 			elsif ($data->{"description"} eq ''
 				&& $data->{"olddescription"} ne '' )
