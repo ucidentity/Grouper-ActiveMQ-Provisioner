@@ -50,6 +50,9 @@ import edu.internet2.middleware.grouper.changeLog.ChangeLogLabels;
 import edu.internet2.middleware.grouper.changeLog.ChangeLogProcessorMetadata;
 import edu.internet2.middleware.grouper.changeLog.ChangeLogTypeBuiltin;
 import edu.internet2.middleware.subject.Subject;
+import edu.internet2.middleware.grouper.attr.AttributeDefName;
+import edu.internet2.middleware.grouper.attr.finder.AttributeDefNameFinder;
+
 
 /**
  * Class to dispatch individual events
@@ -65,6 +68,10 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 	private static String[] exceptionStems;
 	// This is the maximum members to allow for a group to be provisioned
 	private static int maxMembers;
+	private static AttributeDefName syncAttribute;
+	private static String consumerName;
+	private static boolean basicSyncType;
+	private static boolean iMOSycnType;
 	
 
 	/**
@@ -79,12 +86,26 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 		String brokerURL;
 		String username;
 		String password;
+		
+		// initialize this consumer's consumerName from the change log metadata
+        if (consumerName == null) {
+            consumerName = changeLogProcessorMetadata.getConsumerName();
+            LOG.trace("CMU Consumer Name '{}' - Setting name.", consumerName);
+        }
+        
+		ConsumerProperties properties = new ConsumerProperties(consumerName);
 
-		brokerURL = ConsumerProperties.getBrokerUrl();
-		username = ConsumerProperties.getUsername();
-		password = ConsumerProperties.getPassword();
-		exceptionStems = ConsumerProperties.getExceptionStems();
-		maxMembers = ConsumerProperties.getMaxMembers();
+		brokerURL = properties.getBrokerUrl();
+		username = properties.getUsername();
+		password = properties.getPassword();
+		exceptionStems = properties.getExceptionStems();
+		maxMembers = properties.getMaxMembers();
+		// This is the attribute to use to know if we should send this change to the queue.
+		syncAttribute = properties.getSyncAttribute();
+		// Should we send this to the basic type queue
+		basicSyncType = properties.getSyncType()toLowerCase().equals(toLowerCase("basic")) ? true : false;
+		// Should we send this to the isMemberOf type queue.
+		iMOSyncType = properties.getSyncType()toLowerCase().equals(toLowerCase("isMemberOf")) ? true : false;
 		
 		long currentId = 0;
 
@@ -120,7 +141,7 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 						+ currentId);
 				return currentId - 1;
 			}
-
+			
 			for (ChangeLogEntry changeLogEntry : changeLogEntryList) {
 				Member member;
 				String groupName;
@@ -142,7 +163,7 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 						LOG.error("No group name for group add change type. Skipping sequence: "
 								+ currentId);
 					} else {
-						if (groupOk(groupName)) {
+						if (groupOk(groupName) && basicSyncType) {
 							String mesg = getGroupAddedMessage(groupName);
 							writeMessage(mesg, groupName, currentId);
 						} else {
@@ -169,15 +190,21 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 								if (groupOldDescription == null) {
 									groupOldDescription = "";
 								}
-								String mesg = getGroupUpdatedMessage(groupName, groupDescription, groupOldDescription);
-								writeMessage(mesg, groupName, currentId);
+								if (basicSyncType) {
+									String mesg = getGroupUpdatedMessage(groupName, groupDescription, groupOldDescription);
+									writeMessage(mesg, groupName, currentId);
+								}
 							} else if (propertyChanged.equals("name")) {
 								String groupOldName = changeLogEntry
 										.retrieveValueForLabel(ChangeLogLabels.GROUP_UPDATE.propertyOldValue);
-								String mesg = getGroupRenamedMessage(groupName, groupOldName);
-								String mesgIsMemberOf = getGroupIsMemberOfRenamedMessage(groupName, groupOldName);
-								writeMessage(mesg, groupName, currentId);
-								writeMessage(mesgIsMemberOf, groupName, currentId);
+								if (basicSyncType) {
+									String mesg = getGroupRenamedMessage(groupName, groupOldName);
+									writeMessage(mesg, groupName, currentId);
+								}
+								if (iMOsyncType) {
+									String mesgIsMemberOf = getGroupIsMemberOfRenamedMessage(groupName, groupOldName);
+									writeMessage(mesgIsMemberOf, groupName, currentId);
+								}
 							} else {
 								LOG.debug("Skipping sequence "
 										+ changeLogEntry.getSequenceNumber()
@@ -194,10 +221,14 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 						LOG.error("No group name for group delete change type. Skipping sequence: "
 								+ currentId);
 					} else {
-						String mesg = getGroupDeletedMessage(groupName);
-						String mesgIsMemberOf = getGroupDeletedIsMemberOfMessage(groupName);
-						writeMessage(mesg, groupName, currentId);
-						writeMessage(mesgIsMemberOf, groupName, currentId);
+						if (basicSyncType) {
+							String mesg = getGroupDeletedMessage(groupName);
+							writeMessage(mesg, groupName, currentId);
+						}
+						if (iMOsyncType) {
+							String mesgIsMemberOf = getGroupDeletedIsMemberOfMessage(groupName);						
+							writeMessage(mesgIsMemberOf, groupName, currentId);
+						}
 					}
 				} else if (changeLogEntry
 						.equalsCategoryAndAction(ChangeLogTypeBuiltin.MEMBERSHIP_ADD)) {
@@ -213,21 +244,23 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 						if (groupOk(groupName)) {
 							if (member != null) {
 								String memberName = null;
-
+							
 								if (member.getSubjectType().toString()
 										.equals("person")) {
 									memberName = member.getSubjectId();
-									String mesgIsMemberOf = getIsMemberOfAddedMessage(
-											groupName, memberName);
-									writeMessage(mesgIsMemberOf, groupName,
-											currentId);
+									if (iMOSyncType) {
+										String mesgIsMemberOf = getIsMemberOfAddedMessage(
+												groupName, memberName);
+										writeMessage(mesgIsMemberOf, groupName,
+												currentId);
+									}
 								} else {
 									memberName = member.getName();
 								}
-
-								String mesg = getGroupMemberAddedMessage(groupName,
-										memberName);
-								writeMessage(mesg, groupName, currentId);
+								if (basicSyncType) {
+									String mesg = getGroupMemberAddedMessage(groupName,memberName);
+									writeMessage(mesg, groupName, currentId);
+								}
 							}
 						}
 					}
@@ -245,20 +278,23 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 						if (groupOk(groupName)) {
 							if (member != null) {
 								String memberName = null;
-
+								
 								if (member.getSubjectType().toString()
 										.equals("person")) {
 									memberName = member.getSubjectId();
-									String mesgIsMemberOf = getIsMemberOfDeletedMessage(
-											groupName, memberName);
-									writeMessage(mesgIsMemberOf, groupName,
-											currentId);
+									if (iMOSyncType)
+										String mesgIsMemberOf = getIsMemberOfDeletedMessage(
+												groupName, memberName);
+										writeMessage(mesgIsMemberOf, groupName,
+												currentId);
+									}
 								} else {
 									memberName = member.getName();
 								}
-								String mesg = getGroupMemberDeletedMessage(
-										groupName, memberName);
-								writeMessage(mesg, groupName, currentId);
+								if (basicSyncType) {
+									String mesg = getGroupMemberDeletedMessage(groupName, memberName);
+									writeMessage(mesg, groupName, currentId);
+								}
 							}
 						}
 					}
@@ -283,20 +319,22 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 						if (groupOk(groupName)) {
 							if (member != null) {
 								String memberName = null;
-
+								if (basicSyncType) {
 								if (member.getSubjectType().toString()
 										.equals("person")) {
 									memberName = member.getSubjectId();
-									String mesgPrivilegeAdd = getPrivilegeAddedMessage(
-											groupName, memberName);
-									writeMessage(mesgPrivilegeAdd, groupName,
+									//String mesgPrivilegeAdd = getPrivilegeAddedMessage(
+									//		groupName, memberName);
+									//writeMessage(mesgPrivilegeAdd, groupName,
 											currentId);
 								} else {
 									memberName = member.getName();
 								}
-								String mesg = getPrivilegeAddedMessage(groupName,
-										memberName);
-								writeMessage(mesg, groupName, currentId);
+								if (basicSyncType){
+									String mesg = getPrivilegeAddedMessage(groupName,
+												memberName);
+									writeMessage(mesg, groupName, currentId);
+								}
 							}
 						}
 					}
@@ -321,20 +359,22 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 						if (groupOk(groupName)) {
 							if (member != null) {
 								String memberName = null;
-
+								
 								if (member.getSubjectType().toString()
 										.equals("person")) {
 									memberName = member.getSubjectId();
-									String mesgPrivilegeDelete = getPrivilegeDeletedMessage(
-											groupName, memberName);
-									writeMessage(mesgPrivilegeDelete, groupName,
-											currentId);
+									//String mesgPrivilegeDelete = getPrivilegeDeletedMessage(
+									//		groupName, memberName);
+									//writeMessage(mesgPrivilegeDelete, groupName,
+									//		currentId);
 								} else {
 									memberName = member.getName();
 								}
-								String mesg = getPrivilegeDeletedMessage(groupName,
-										memberName);
-								writeMessage(mesg, groupName, currentId);
+								if (basicSyncType) {
+									String mesg = getPrivilegeDeletedMessage(groupName,
+											memberName);
+									writeMessage(mesg, groupName, currentId);
+								}
 							}
 						}
 					}
@@ -380,21 +420,21 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 			LOG.debug("Group " + groupName + " doesn\'t exist");
 			return false;
 	            }
-		    if (group.getMembers().size() <= maxMembers) {
+    		if (group.getMembers().size() <= maxMembers) {
                         LOG.debug("Group " + groupName + " is okay to provision or add a member."); 
                         return true;
 		    } else {
 			// Membership too large, so check if part of exceptionStems
-			if (exceptionStems != null) {
-			    for (String stem: exceptionStems) {
-				if (groupName.startsWith(stem)) {
-					LOG.debug("Group " + groupName + " is an exception");
-					return true;
+				if (exceptionStems != null) {
+				    for (String stem: exceptionStems) {
+						if (groupName.startsWith(stem)) {
+							LOG.debug("Group " + groupName + " is an exception");
+							return true;
+						}
+				    }
+				} else {
+				   LOG.debug("Group " + groupName + " is too big to provision or add a member.");
 				}
-			    }
-			} else {
-			   LOG.debug("Group " + groupName + " is too big to provision or add a member.");
-			}
 		    }
 		// nothing to do. Group ok. no max
 		} else {

@@ -17,6 +17,7 @@ import java.lang.Exception;
 import java.net.URL;
 import java.util.Properties;
 
+import edu.internet2.middleware.grouper.app.loader.GrouperLoaderConfig;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -27,16 +28,7 @@ import org.apache.commons.logging.LogFactory;
 public class ConsumerProperties {
 
 	private final static Log log = LogFactory.getLog(edu.cmu.grouper.changelog.consumer.ConsumerMain.class);
-
-	// the config file name
-	private static String configFile = "cmuconsumer.properties";
-	
-	// indicates if we attempted to read the properties files
-	private static boolean didReadProperties = false;
-	
-	// indicates if we read all required properties from the file
-	private static boolean haveRequiredProperties = false;
-
+	private static final String PARAMETER_NAMESPACE = "changeLog.consumer.";
 	
 	private static String brokerURL = null;
 	private static String username = null;
@@ -45,42 +37,84 @@ public class ConsumerProperties {
 	private static String usduExcludes = null;
 	private static String exceptionStemsConfig = null;
 	private static int maxMembers = 0;
+	private static String syncAttribute = null;
+	private static String syncType = null;
 
-	
-	public static boolean propertiesOk() {
-		readProperties();
-		return haveRequiredProperties;
+	private static void ConsumerProperties(String consumerName) {
+		
+		final String qualifiedParameterNamespace = PARAMETER_NAMESPACE + consumerName + ".";
+
+	    LOG.debug("CMU Consumer - Setting properties for {} consumer/provisioner.", consumerName);
+
+
+		try {
+			
+			brokerURL = 
+					GrouperLoaderConfig.retrieveConfig().propertyValueStringRequired(qualifiedParameterNamespace + "brokerURL");
+			LOG.debug("CMU Consumer - Setting brokerURL to {}", brokerURL);
+			        
+			username = 
+					GrouperLoaderConfig.retrieveConfig().propertyValueStringRequired(qualifiedParameterNamespace + "username");
+			LOG.debug("CMU Consumer - Setting username to {}", username);
+			        
+			password = 
+					GrouperLoaderConfig.retrieveConfig().propertyValueString(qualifiedParameterNamespace + "password", "");
+			LOG.debug("CMU Consumer - Setting password to {}", password);
+			
+			targets = 
+					GrouperLoaderConfig.retrieveConfig().propertyValueStringRequired(qualifiedParameterNamespace + "targets");
+			LOG.debug("CMU Consumer - Setting targets to {}", targets);
+			   
+			usduExcludes = 
+					GrouperLoaderConfig.retrieveConfig().propertyValueString(qualifiedParameterNamespace + "usduExcludes", "");
+			LOG.debug("CMU Consumer - Setting usduExcludes to {}", usduExcludes);
+			
+			exceptionStemsConfig = 
+					GrouperLoaderConfig.retrieveConfig().propertyValueString(qualifiedParameterNamespace + "exceptionStems", "");
+			LOG.debug("CMU Consumer - Setting exceptionStemsConfig to {}", exceptionStemsConfig);
+			
+			maxMembers = 
+					GrouperLoaderConfig.retrieveConfig().propertyValueInt(qualifiedParameterNamespace + "maxMembers", -1);
+			LOG.debug("CMU Consumer - Setting maxMembers to {}", maxMembers);
+			
+			syncAttribute = 
+					GrouperLoaderConfig.retrieveConfig().propertyValueStringRequired(qualifiedParameterNamespace + "syncAttribute");
+			LOG.debug("CMU Consumer - Setting syncAttribute to {}", syncAttribute);
+			   		
+			syncType = 
+					GrouperLoaderConfig.retrieveConfig().propertyValueString(qualifiedParameterNamespace + "syncType", "basic");
+			LOG.debug("CMU Consumer - Setting syncType to {}", syncType);
+			   				
+
+		} catch (Exception e) {
+			log.error("Error reading configuration values: " + e);
+		}
 	}
 
+	
 	public static String getBrokerUrl() {
-		readProperties();
 		return brokerURL;
 	}
 
 	public static String getUsername() {
-		readProperties();
 		return username;
 	}
 
 	public static String getPassword() {
-		readProperties();
 		return password;
 	}
 	
 	public static String getTargets() {
-		readProperties();
 		return targets;
 	}
 	
 	public static String getUsduExcludes() {
-		readProperties();
 		return usduExcludes;
 	}
 	
 	public static String[] getExceptionStems() {
 			String delims = "[,]";
 
-		readProperties();
 		// check for no stems
 		if (exceptionStemsConfig == null) {
 			log.warn ("no exception stems");
@@ -100,86 +134,17 @@ public class ConsumerProperties {
 	
 
 	public static int getMaxMembers() {
-		readProperties();
 		return maxMembers;
 	}
 
-	
-	private static void readProperties() {
-
-		// the properties file is only read for the first call
-		if (didReadProperties) {
-			return;
-		}
-
-		didReadProperties = true;
-		haveRequiredProperties = false;
-
-		try {
-			URL configURL;
-			Properties configValues;
-			
-			configURL = ConsumerProperties.class.getClassLoader().getResource(
-					configFile);
-			
-			
-			
-			if (configURL == null) {
-				log.error("CmuConsumer config file \"" + configFile
-						+ "\" not found");
-				return;
-			}
-			
-			configValues = new Properties();
-			configValues.load(configURL.openStream());
-			
-			haveRequiredProperties = true;
-
-			brokerURL = configValues.getProperty("brokerURL");
-			if (brokerURL == null) {
-				haveRequiredProperties = false;
-				log.error("brokerURL not found in properties file");
-			}
-
-			username = configValues.getProperty("username");
-			if (username == null) {
-				haveRequiredProperties = false;
-				log.error("username not found in properties file");
-			}
-
-			password = configValues.getProperty("password");
-			if (password == null) {
-				haveRequiredProperties = false;
-				log.error("password not found in properties file");
-			}
-			
-			targets = configValues.getProperty("targets");
-			if (targets == null) {
-				haveRequiredProperties = false;
-				log.error("targets not found in properties file");
-			}
-			
-			usduExcludes = configValues.getProperty("usduExcludes");
-			
-			exceptionStemsConfig = configValues.getProperty("exceptionStems");
-			if (exceptionStemsConfig == null) {
-                                log.error("exceptionStems not found in properties file");
-                        }
-
-			if (configValues.getProperty("maxMembers") == null) {
-				maxMembers = -1;
-                                log.error("maxMembers not found in properties file. Seting to infinite or -1.");
-			} else {
-			 	maxMembers = Integer.parseInt(configValues.getProperty("maxMembers"));
-			        log.debug("maxMembers is: " +  maxMembers);
-            }
-						
-			log.info("Read ConsumerProperties config file \"" + configURL + "\" successfully");
-
-		} catch (Exception e) {
-			haveRequiredProperties = false;
-			log.error("Error reading " + configFile + ": " + e);
-		}
+	public static String getSyncAttribute() {
+		return syncAttribute;
 	}
+	
+	public static String getSyncType() {
+		return syncType;
+	}
+	
+
 	
 }
