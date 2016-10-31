@@ -13,6 +13,7 @@ THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND 
 
 package edu.cmu.grouper.changelog.consumer;
 
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -52,6 +53,15 @@ import edu.internet2.middleware.grouper.changeLog.ChangeLogTypeBuiltin;
 import edu.internet2.middleware.subject.Subject;
 import edu.internet2.middleware.grouper.attr.AttributeDefName;
 import edu.internet2.middleware.grouper.attr.finder.AttributeDefNameFinder;
+import edu.internet2.middleware.grouper.attr.finder.AttributeAssignFinder;
+import edu.internet2.middleware.grouper.attr.assign.AttributeAssign;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import org.json.simple.JSONArray;
+import org.json.simple.JSONObject;
+
 
 
 /**
@@ -59,19 +69,24 @@ import edu.internet2.middleware.grouper.attr.finder.AttributeDefNameFinder;
  */
 public class ConsumerMain extends ChangeLogConsumerBase {
 
-	private static final Log LOG = LogFactory
-			.getLog(edu.cmu.grouper.changelog.consumer.ConsumerMain.class);
+	private static final Logger LOG = LoggerFactory.getLogger(edu.cmu.grouper.changelog.consumer.ConsumerMain.class);
+	//private static final Log LOG = LogFactory
+	//		.getLog(edu.cmu.grouper.changelog.consumer.ConsumerMain.class);
 	private GrouperSession gs;
 	private ActiveMQConnectionFactory connectionFactory;
 	private static Connection connection;	
-	// These are Stems that are allowed to provision groups larger than maxMembers
-	private static String[] exceptionStems;
+	// Allow large groups is this is set to yes
+	private static AttributeDefName allowLargeGroupsAttribute;
 	// This is the maximum members to allow for a group to be provisioned
 	private static int maxMembers;
 	private static AttributeDefName syncAttribute;
 	private static String consumerName;
 	private static boolean basicSyncType;
-	private static boolean iMOSycnType;
+	private static boolean iMOSyncType;
+	private static boolean useXmlMessageFormat;
+	private HashMap<String, String> syncedObjects;
+	long currentId = 0;
+	
 	
 
 	/**
@@ -90,7 +105,7 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 		// initialize this consumer's consumerName from the change log metadata
         if (consumerName == null) {
             consumerName = changeLogProcessorMetadata.getConsumerName();
-            LOG.trace("CMU Consumer Name '{}' - Setting name.", consumerName);
+            LOG.debug("CMU Consumer Name '{}' - Setting name.", consumerName);
         }
         
 		ConsumerProperties properties = new ConsumerProperties(consumerName);
@@ -98,16 +113,21 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 		brokerURL = properties.getBrokerUrl();
 		username = properties.getUsername();
 		password = properties.getPassword();
-		exceptionStems = properties.getExceptionStems();
 		maxMembers = properties.getMaxMembers();
 		// This is the attribute to use to know if we should send this change to the queue.
-		syncAttribute = properties.getSyncAttribute();
-		// Should we send this to the basic type queue
-		basicSyncType = properties.getSyncType()toLowerCase().equals(toLowerCase("basic")) ? true : false;
+		syncAttribute = AttributeDefNameFinder.findByName( properties.getSyncAttribute(), true);
+		// This is the attribute to use to know if we should allow large groups over maxMembers
+		allowLargeGroupsAttribute = AttributeDefNameFinder.findByName( properties.getAllowLargeGroupsAttribute(), true);
+		// Should we send this to the basic type queue   equalsIgnoreCase
+		basicSyncType = properties.getSyncType().equalsIgnoreCase("basic") ? true : false;
 		// Should we send this to the isMemberOf type queue.
-		iMOSyncType = properties.getSyncType()toLowerCase().equals(toLowerCase("isMemberOf")) ? true : false;
+		iMOSyncType = properties.getSyncType().equalsIgnoreCase("isMemberOf") ? true : false;
+		// What outgoing message format shall we use. xml or json
+		useXmlMessageFormat = properties.getUseXmlMessageFormat();
+		// Setup Synced Object HashMap. 
+		syncedObjects = new HashMap<String, String>();
 		
-		long currentId = 0;
+		
 
 		for (ChangeLogEntry changeLogEntry : changeLogEntryList) {
 			currentId = changeLogEntry.getSequenceNumber();
@@ -127,13 +147,6 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 		}
 
 		try {
-			// read and check properties
-			if (!ConsumerProperties.propertiesOk()) {
-				LOG.error("Couldn't process any records: Error"
-						+ " reading properties file " + currentId);
-				return currentId - 1;
-			}
-
 			// get the existing Grouper session from the loader
 			gs = GrouperSession.staticGrouperSession();
 			if (gs == null) {
@@ -201,7 +214,7 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 									String mesg = getGroupRenamedMessage(groupName, groupOldName);
 									writeMessage(mesg, groupName, currentId);
 								}
-								if (iMOsyncType) {
+								if (iMOSyncType) {
 									String mesgIsMemberOf = getGroupIsMemberOfRenamedMessage(groupName, groupOldName);
 									writeMessage(mesgIsMemberOf, groupName, currentId);
 								}
@@ -216,20 +229,9 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 				} else if (changeLogEntry
 						.equalsCategoryAndAction(ChangeLogTypeBuiltin.GROUP_DELETE)) {
 					groupName = changeLogEntry
-							.retrieveValueForLabel(ChangeLogLabels.GROUP_DELETE.name);
-					if (groupName == null) {
-						LOG.error("No group name for group delete change type. Skipping sequence: "
-								+ currentId);
-					} else {
-						if (basicSyncType) {
-							String mesg = getGroupDeletedMessage(groupName);
-							writeMessage(mesg, groupName, currentId);
-						}
-						if (iMOsyncType) {
-							String mesgIsMemberOf = getGroupDeletedIsMemberOfMessage(groupName);						
-							writeMessage(mesgIsMemberOf, groupName, currentId);
-						}
-					}
+							.retrieveValueForLabel(ChangeLogLabels.GROUP_DELETE.name);							
+					deleteGroup (groupName);
+					
 				} else if (changeLogEntry
 						.equalsCategoryAndAction(ChangeLogTypeBuiltin.MEMBERSHIP_ADD)) {
 					groupName = changeLogEntry
@@ -282,7 +284,7 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 								if (member.getSubjectType().toString()
 										.equals("person")) {
 									memberName = member.getSubjectId();
-									if (iMOSyncType)
+									if (iMOSyncType) {
 										String mesgIsMemberOf = getIsMemberOfDeletedMessage(
 												groupName, memberName);
 										writeMessage(mesgIsMemberOf, groupName,
@@ -320,17 +322,16 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 							if (member != null) {
 								String memberName = null;
 								if (basicSyncType) {
-								if (member.getSubjectType().toString()
+								   if (member.getSubjectType().toString()
 										.equals("person")) {
-									memberName = member.getSubjectId();
+										memberName = member.getSubjectId();
 									//String mesgPrivilegeAdd = getPrivilegeAddedMessage(
 									//		groupName, memberName);
 									//writeMessage(mesgPrivilegeAdd, groupName,
-											currentId);
-								} else {
-									memberName = member.getName();
-								}
-								if (basicSyncType){
+									//		currentId);
+									} else {
+										memberName = member.getName();
+									}
 									String mesg = getPrivilegeAddedMessage(groupName,
 												memberName);
 									writeMessage(mesg, groupName, currentId);
@@ -378,6 +379,62 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 							}
 						}
 					}
+				} else if (changeLogEntry
+							.equalsCategoryAndAction(ChangeLogTypeBuiltin.ATTRIBUTE_ASSIGN_VALUE_ADD)) {
+
+					final String attributeDefNameId = 
+								changeLogEntry.retrieveValueForLabel(ChangeLogLabels.ATTRIBUTE_ASSIGN_VALUE_ADD.attributeDefNameId);
+			        final String value = changeLogEntry.retrieveValueForLabel(ChangeLogLabels.ATTRIBUTE_ASSIGN_VALUE_ADD.value);
+					
+					AttributeAssign theAttributeAssign = AttributeAssignFinder.findById(	
+							changeLogEntry.retrieveValueForLabel(ChangeLogLabels.ATTRIBUTE_ASSIGN_VALUE_ADD.attributeAssignId), false);
+					final Group theGroup = theAttributeAssign.getOwnerGroup();
+					boolean isGroup = (theGroup != null) ? true : false;
+					final Stem theStem = theAttributeAssign.getOwnerStem();
+					boolean isStem = (theStem != null) ? true : false;
+					
+	
+					// The value is set to yes
+					if (value.equalsIgnoreCase("yes")) {
+						// This is the Sync or Allow Large Groups Attribute
+						if (syncAttribute.getId().equalsIgnoreCase(attributeDefNameId) || 
+								allowLargeGroupsAttribute.getId().equalsIgnoreCase(attributeDefNameId)) {
+							if (isGroup) {
+								if (groupOk (theGroup.getName())){
+									syncGroup(theGroup);
+								}
+							} else if (isStem) {
+								final Set<edu.internet2.middleware.grouper.Group> groups = theStem.getChildGroups(Scope.SUB);
+
+				                for (edu.internet2.middleware.grouper.Group group : groups) {
+									if (groupOk (group.getName())) {
+				                   		syncGroup(group);
+									}
+								}
+							}
+						}
+					}
+					// The value is set to no
+					if (value.equalsIgnoreCase("no")) {
+						// This is the Sync Attribute
+						if (syncAttribute.getId().equalsIgnoreCase(attributeDefNameId) || 
+								allowLargeGroupsAttribute.getId().equalsIgnoreCase(attributeDefNameId)) {
+							if (isGroup) {
+								if (shouldDelete (theGroup.getName())) {
+									deleteGroup (theGroup.getName());
+								}
+							} else if (isStem) {
+								final Set<edu.internet2.middleware.grouper.Group> groups = theStem.getChildGroups(Scope.SUB);
+
+				                for (edu.internet2.middleware.grouper.Group group : groups) {
+									if (shouldDelete (group.getName())) {
+				                   		deleteGroup (group.getName());
+									}
+								}
+							}
+						}
+					}	
+													
 				} else {
 					LOG.debug("Skipping sequence: "
 							+ changeLogEntry.getSequenceNumber()
@@ -412,184 +469,461 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 	
 	
 	private boolean groupOk (String groupName) {
-		// Check if group membership size ok
-		// If set to -1, nothing to do. No max.
-		if (maxMembers >= 0) {
-	  	    Group group = GroupFinder.findByName(gs, groupName, false);
-		    if (group == null) {
+		LOG.debug ("groupOk (groupName: {})", groupName);
+
+		// Check if group exists
+		Group group = GroupFinder.findByName(gs, groupName, false);
+	    if (group == null) {
 			LOG.debug("Group " + groupName + " doesn\'t exist");
 			return false;
-	            }
-    		if (group.getMembers().size() <= maxMembers) {
-                        LOG.debug("Group " + groupName + " is okay to provision or add a member."); 
-                        return true;
-		    } else {
-			// Membership too large, so check if part of exceptionStems
-				if (exceptionStems != null) {
-				    for (String stem: exceptionStems) {
-						if (groupName.startsWith(stem)) {
-							LOG.debug("Group " + groupName + " is an exception");
-							return true;
-						}
-				    }
-				} else {
-				   LOG.debug("Group " + groupName + " is too big to provision or add a member.");
+        }
+
+		if (syncedObjects.containsKey(groupName)) {
+			if (syncedObjects.get(groupName).equalsIgnoreCase("yes")) return true;
+		}
+		
+  	    // Check if the sync attribute exists and is "yes"
+		// plus membership size is less than maxMembers
+		if (isAttributeSetToYes (group, syncAttribute)) {
+			if (group.getMembers().size() <= maxMembers) {
+				LOG.debug("Group {} is okay to provision or add a member. Size is {}", groupName, group.getMembers().size()); 
+				syncedObjects.put(groupName, "yes");
+            	return true;
+			} else {
+				if (isAttributeSetToYes (group, allowLargeGroupsAttribute)) {
+					LOG.debug("Group {} is okay to provision or add a member due to allowLargeGroups attribute being set", groupName);
+					syncedObjects.put(groupName, "yes");
+					return true;
 				}
-		    }
-		// nothing to do. Group ok. no max
+				return false;
+			}
 		} else {
-		    LOG.debug("Group " + groupName + " is okay to provision or add a member. maxMembers equals -1.");
-		    return true;
-		}	
-		// The group is too large and is not under one of the exception stems
-		return false;
+			// The group doesn't have sync = yes
+			LOG.debug ("No go for group {}", groupName);
+			return false;
+		}
 	} 
 
+
+	private boolean shouldDelete (String groupName) {
+		LOG.debug ("shouldDelete (groupName: {})", groupName);
+				
+		// Check if group exists
+		Group group = GroupFinder.findByName(gs, groupName, false);
+	    if (group == null) {
+			LOG.debug("Group " + groupName + " doesn\'t exist");
+			return true;
+        }
+  	    // Check if the sync attribute exists and is "yes"
+		// plus membership size is less than maxMembers
+		if (isAttributeSetToYes (group, syncAttribute)) {
+			if (group.getMembers().size() <= maxMembers) {
+				LOG.debug("Group {} should remain. Size is {}", groupName, group.getMembers().size()); 
+            	return false;
+			} else {
+				if (isAttributeSetToYes (group, allowLargeGroupsAttribute)) {
+					LOG.debug("Group {} should remain or add a member due to allowLargeGroups attribute being set", groupName);
+					return false;
+				}
+				return true;
+			}
+		} else {
+			// The group doesn't have sync = yes
+			LOG.debug ("We are go for deletion group {}", groupName);
+			return true;
+		}
+	} 
+
+
+
+	private boolean isAttributeSetToYes(Group group, AttributeDefName attribute) {
+		LOG.debug ("isAttributeSetToYes (group: {}, attribute: {})", group, attribute);
+		
+		if (group.getAttributeDelegate().retrieveAssignments(attribute).size() > 0) {
+			return group.getAttributeDelegate().retrieveAssignments(attribute)
+									.iterator().next().getValueDelegate().retrieveValuesString().contains("yes") ||
+						isAttributeSetToYesOnStem (group.getParentStem(), attribute);
+		// The attribute isn't set. We'll check the Stem.
+		} else {
+			return isAttributeSetToYesOnStem (group.getParentStem(), attribute);
+		}
+	}
+
+
+	private boolean isAttributeSetToYesOnStem (Stem stem, AttributeDefName attribute) {
+		LOG.debug ("isAttributeSetToYes (stem: {}, attribute: {})", stem, attribute);
+
+        final String stemName = stem.getName();
+
+		if (stem.getAttributeDelegate().retrieveAssignments(attribute).size() > 0) {
+			return stem.getAttributeDelegate().retrieveAssignments(attribute)
+									.iterator().next().getValueDelegate().retrieveValuesString().contains("yes");
+		// Try the parent stem if we aren't already at the root stem.
+		} else {
+			return !stem.isRootStem() && isAttributeSetToYesOnStem (stem.getParentStem(), attribute);
+		}
+    }
+
+	private void deleteGroup (String groupName) {
+		LOG.debug ("deleteGroup (groupName {})", groupName);
+		if (groupName == null) {
+			LOG.error("No group name for group delete change type. Skipping to next in sequence.");
+		} else {
+			if (basicSyncType) {
+				String mesg = getGroupDeletedMessage(groupName);
+				writeMessage(mesg, groupName, currentId);
+			}
+			if (iMOSyncType) {
+				String mesgIsMemberOf = getGroupDeletedIsMemberOfMessage(groupName);						
+				writeMessage(mesgIsMemberOf, groupName, currentId);
+			}
+		syncedObjects.remove(groupName);
+		}
+		
+	}
 	
+	private void syncGroup(Group group) {
+		LOG.debug ("syncGroup(group {})", group);
+		if (group != null) {
+			LOG.debug("Sync for group {}.", group.getName());
+			
+			Set<Member> members = getAllGroupMembers(group, gs);
+			
+			if (basicSyncType) {
+				String mesg = getGroupFullSyncMessage(group, members);
+				LOG.debug("GroupFullSyncMesg: {}", mesg);
+				writeMessage(mesg, group.getName(), currentId);
+			}
+			if (iMOSyncType) {
+				String mesgIsMemberOf = getIsMemberOfFullSyncMessage(group, members);
+				LOG.debug("isMemberOfSyncMessage: ", mesgIsMemberOf);
+				writeMessage(mesgIsMemberOf, group.getName(), currentId);
+			}
+
+			LOG.info("Group Sync completed sucessfully for group "
+					+ group.getName());
+
+		} else {
+			LOG.debug("Group {} not found", group.getName());
+		}
+	}
+		
+	private Set<Member> getAllGroupMembers(Group group) {
+		Set<Member> members = new HashSet<Member>();
+
+		Set<Member> group_members = group.getMembers();
+
+		for (Member member : group_members) {
+			String memberType = member.getSubjectType().toString();
+			if (memberType.equals("person")) {
+				members.add(member);
+			} else if (memberType.equals("group")) {
+				Subject subject = member.getSubject();
+
+				if (subject != null) {
+					members.add(member);
+					Group nested_group = GroupFinder.findByName(gs,
+							member.getName(), false);
+					Set<Member> nested_group_members = getAllGroupMembers(
+							nested_group, gs);
+
+					for (Member nested_member : nested_group_members) {
+						members.add(nested_member);
+					}
+				} else {
+					LOG.error("Cannot find group:" + member.getName());
+				}
+
+			}
+		}
+		return members;
+	}
+		
+		
+   
 
 	private String getGroupAddedMessage(String groupName) {
-		String mesg = "<operation>createGroup</operation>";
-		mesg = mesg + "<name><![CDATA[" + groupName + "]]></name>";
+		String mesg = "";
+		if (useXmlMessageFormat) {
+			mesg = "<operation>createGroup</operation>";
+			mesg = mesg + "<name><![CDATA[" + groupName + "]]></name>";
+		} else {
+			mesg = "{\"operation\":\"createGroup\",";
+			mesg = mesg + "\"name\":\"" + groupName + "\"}";
+		}
 		return mesg;
 	}
 
 	private String getGroupDeletedMessage(String groupName) {
-		String mesg = "<operation>deleteGroup</operation>";
-		mesg = mesg + "<name><![CDATA[" + groupName + "]]></name>";
+		String mesg = "";
+		if (useXmlMessageFormat) {
+			mesg = "<operation>deleteGroup</operation>";
+			mesg = mesg + "<name><![CDATA[" + groupName + "]]></name>";
+		} else {
+			mesg = "{\"operation\":\"deleteGroup\",";
+			mesg = mesg + "\"name\":\"" + groupName + "\"}";
+		}
 		return mesg;
 	}
 
 	private String getGroupDeletedIsMemberOfMessage(String groupName) {
-		String mesg = "<operation>deleteGroupIsMemberOf</operation>";
-		mesg = mesg + "<name><![CDATA[" + groupName + "]]></name>";
+		String mesg = "";
+		if (useXmlMessageFormat) {
+			mesg = "<operation>deleteGroupIsMemberOf</operation>";
+			mesg = mesg + "<name><![CDATA[" + groupName + "]]></name>";
+		} else {
+			mesg = "{\"operation\":\"deleteGroupIsMemberOf\",";
+			mesg = mesg + "\"name\":\"" + groupName + "\"}";
+		}
 		return mesg;
 	}
 
 	private String getGroupUpdatedMessage(String groupName,
 			String groupDescription, String groupOldDescription) {
-		String mesg = "<operation>updateGroup</operation>";
-		mesg = mesg + "<name><![CDATA[" + groupName + "]]></name>";
-		mesg = mesg + "<description><![CDATA[" + groupDescription
-				+ "]]></description>";
-		mesg = mesg + "<olddescription><![CDATA[" + groupOldDescription
+		String mesg = "";
+		if (useXmlMessageFormat) {
+			mesg = "<operation>updateGroup</operation>";
+			mesg = mesg + "<name><![CDATA[" + groupName + "]]></name>";
+			mesg = mesg + "<description><![CDATA[" + groupDescription
+					+ "]]></description>";
+			mesg = mesg + "<olddescription><![CDATA[" + groupOldDescription
 				+ "]]></olddescription>";
+		} else {
+			mesg = "{\"operation\":\"updateGroup\",";
+			mesg = mesg + "\"name\":\"" + groupName + "\",";
+			mesg = mesg + "\"description\":\"" + groupDescription + "\",";
+			mesg = mesg + "\"olddescription\":\"" + groupOldDescription + "\"}";
+		}
 		return mesg;
 	}
 
 	private String getGroupRenamedMessage(String groupName, String groupOldName) {
-		String mesg = "<operation>renameGroup</operation>";
-		mesg = mesg + "<name><![CDATA[" + groupName + "]]></name>";
-		mesg = mesg + "<oldname><![CDATA[" + groupOldName + "]]></oldname>";
+		String mesg = "";
+		if (useXmlMessageFormat) {
+			mesg = "<operation>renameGroup</operation>";
+			mesg = mesg + "<name><![CDATA[" + groupName + "]]></name>";
+			mesg = mesg + "<oldname><![CDATA[" + groupOldName + "]]></oldname>";
+		} else {
+			mesg = "{\"operation\":\"renameGroup\",";
+			mesg = mesg + "\"name\":\"" + groupName + "\",";
+			mesg = mesg + "\"oldname\":\"" + groupOldName + "\"}";
+		}
 		return mesg;
 	}
 
 	private String getGroupIsMemberOfRenamedMessage(String groupName, String groupOldName) {
-		String mesg = "<operation>renameGroupIsMemberOf</operation>";
-		mesg = mesg + "<name><![CDATA[" + groupName + "]]></name>";
-		mesg = mesg + "<oldname><![CDATA[" + groupOldName + "]]></oldname>";
+		String mesg = "";
+		if (useXmlMessageFormat) {
+			mesg = "<operation>renameGroupIsMemberOf</operation>";
+			mesg = mesg + "<name><![CDATA[" + groupName + "]]></name>";
+			mesg = mesg + "<oldname><![CDATA[" + groupOldName + "]]></oldname>";
+		} else {
+			mesg = "{\"operation\":\"deleteGroupIsMemberOf\",";
+			mesg = mesg + "\"name\":\"" + groupName + "\",";
+			mesg = mesg + "\"oldname\":\"" + groupOldName + "\"}";
+		}
 		return mesg;
 	}
 
 	private String getGroupMemberAddedMessage(String groupName, String uid) {
-		String mesg = "<operation>addMember</operation>";
-		mesg = mesg + "<name><![CDATA[" + groupName + "]]></name>";
-		mesg = mesg + "<memberId><![CDATA[" + uid + "]]></memberId>";
+		String mesg = "";
+		if (useXmlMessageFormat) {
+			mesg = "<operation>addMember</operation>";
+			mesg = mesg + "<name><![CDATA[" + groupName + "]]></name>";
+			mesg = mesg + "<memberId><![CDATA[" + uid + "]]></memberId>";
+		} else {
+			mesg = "{\"operation\":\"addMember\",";
+			mesg = mesg + "\"name\":\"" + groupName + "\",";
+			mesg = mesg + "\"memberId\":\"" + uid + "\"}";
+		}
 		return mesg;
 	}
 
 	private String getIsMemberOfAddedMessage(String groupName, String uid) {
-		String mesg = "<operation>addIsMemberOf</operation>";
-		mesg = mesg + "<name><![CDATA[" + groupName + "]]></name>";
-		mesg = mesg + "<memberId><![CDATA[" + uid + "]]></memberId>";
+		String mesg = "";
+		if (useXmlMessageFormat) {		
+			mesg = "<operation>addIsMemberOf</operation>";
+			mesg = mesg + "<name><![CDATA[" + groupName + "]]></name>";
+			mesg = mesg + "<memberId><![CDATA[" + uid + "]]></memberId>";
+		} else {
+			mesg = "{\"operation\":\"addIsMemberOf\",";
+			mesg = mesg + "\"name\":\"" + groupName + "\",";
+			mesg = mesg + "\"memberId\":\"" + uid + "\"}";
+		}
 		return mesg;
 	}
 
 	private String getGroupMemberDeletedMessage(String groupName, String uid) {
-		String mesg = "<operation>removeMember</operation>";
-		mesg = mesg + "<name><![CDATA[" + groupName + "]]></name>";
-		mesg = mesg + "<memberId><![CDATA[" + uid + "]]></memberId>";
+		String mesg = "";
+		if (useXmlMessageFormat) {
+			mesg = "<operation>removeMember</operation>";
+			mesg = mesg + "<name><![CDATA[" + groupName + "]]></name>";
+			mesg = mesg + "<memberId><![CDATA[" + uid + "]]></memberId>";
+		} else {
+			mesg = "{\"operation\":\"removeMember\",";
+			mesg = mesg + "\"name\":\"" + groupName + "\",";
+			mesg = mesg + "\"memberId\":\"" + uid + "\"}";
+		}
 		return mesg;
 	}
 
 	private String getIsMemberOfDeletedMessage(String groupName, String uid) {
-		String mesg = "<operation>removeIsMemberOf</operation>";
-		mesg = mesg + "<name><![CDATA[" + groupName + "]]></name>";
-		mesg = mesg + "<memberId><![CDATA[" + uid + "]]></memberId>";
+		String mesg = "";
+		if (useXmlMessageFormat) {		
+			mesg = "<operation>removeIsMemberOf</operation>";
+			mesg = mesg + "<name><![CDATA[" + groupName + "]]></name>";
+			mesg = mesg + "<memberId><![CDATA[" + uid + "]]></memberId>";
+		} else {
+			mesg = "{\"operation\":\"removeIsMemberOf\",";
+			mesg = mesg + "\"name\":\"" + groupName + "\",";
+			mesg = mesg + "\"memberId\":\"" + uid + "\"}";
+		}
 		return mesg;
 	}
 
 	private String getPrivilegeAddedMessage(String groupName, String uid) {
-		String mesg = "<operation>addPrivilege</operation>";
-		mesg = mesg + "<name><![CDATA[" + groupName + "]]></name>";
-		mesg = mesg + "<memberId><![CDATA[" + uid + "]]></memberId>";
+		String mesg = "";
+		if (useXmlMessageFormat) {
+			mesg = "<operation>addPrivilege</operation>";
+			mesg = mesg + "<name><![CDATA[" + groupName + "]]></name>";
+			mesg = mesg + "<memberId><![CDATA[" + uid + "]]></memberId>";
+		} else {
+			mesg = "{\"operation\":\"addPrivilege\",";
+			mesg = mesg + "\"name\":\"" + groupName + "\",";
+			mesg = mesg + "\"memberId\":\"" + uid + "\"}";
+		}
 		return mesg;
 	}
 
 	private String getPrivilegeDeletedMessage(String groupName, String uid) {
-		String mesg = "<operation>removePrivilege</operation>";
-		mesg = mesg + "<name><![CDATA[" + groupName + "]]></name>";
-		mesg = mesg + "<memberId><![CDATA[" + uid + "]]></memberId>";
+		String mesg = "";
+		if (useXmlMessageFormat) {
+			mesg = "<operation>removePrivilege</operation>";
+			mesg = mesg + "<name><![CDATA[" + groupName + "]]></name>";
+			mesg = mesg + "<memberId><![CDATA[" + uid + "]]></memberId>";
+		} else {
+			mesg = "{\"operation\":\"removePrivilege\",";
+			mesg = mesg + "\"name\":\"" + groupName + "\",";
+			mesg = mesg + "\"memberId\":\"" + uid + "\"}";
+		}
 		return mesg;
 	}
 
 	private static String getGroupFullSyncMessage(Group group,
 			Set<Member> members) {
-		String mesg = "<operation>fullSync</operation>";
-		mesg = mesg + "<description><![CDATA[" + group.getDescription()
-				+ "]]></description>";
-		mesg = mesg + "<name><![CDATA[" + group.getName() + "]]></name>";
-		mesg = mesg + "<memberList>";
+		String mesg = "";
+		JSONObject jObj = new JSONObject();
+		JSONArray jList = new JSONArray();
+		
+		if (useXmlMessageFormat) {
+			mesg = "<operation>fullSync</operation>";
+			mesg = mesg + "<description><![CDATA[" + group.getDescription()
+					+ "]]></description>";
+			mesg = mesg + "<name><![CDATA[" + group.getName() + "]]></name>";
+			mesg = mesg + "<memberList>";
 
-		for (Member member : members) {
-			if (member.getSubjectType().toString().equals("group")) {
-				mesg = mesg + "<member><![CDATA[" + member.getName()
-						+ "]]></member>";
-			} else {
-				mesg = mesg + "<member><![CDATA[" + member.getSubjectId()
-						+ "]]></member>";
+			for (Member member : members) {
+				if (member.getSubjectType().toString().equals("group")) {
+					mesg = mesg + "<member><![CDATA[" + member.getName()
+							+ "]]></member>";
+				} else {
+					mesg = mesg + "<member><![CDATA[" + member.getSubjectId()
+							+ "]]></member>";
+				}
 			}
+			mesg = mesg + "</memberList>";
+			
+		} else {
+			jObj.put ("operation", "fullSync");
+			jObj.put ("description", group.getDescription());
+			jObj.put ("name", group.getName());
+			
+			for (Member member : members) {
+				if (member.getSubjectType().toString().equals("group")) {
+					jList.add (member.getName());
+				} else {
+					jList.add (member.getSubjectId());
+				}
+			}
+			jObj.put ("memberList", jList);
+			mesg = jObj.toJSONString();	
 		}
-
-		mesg = mesg + "</memberList>";
 		return mesg;
 	}
 
 	private static String getGroupPrivilegeFullSyncMessage(Group group,
 			Set<Subject> subjects) {
-		String mesg = "<operation>fullSyncPrivilege</operation>";
-		mesg = mesg + "<description><![CDATA[" + group.getDescription()
-				+ "]]></description>";
-		mesg = mesg + "<name><![CDATA[" + group.getName() + "]]></name>";
-		mesg = mesg + "<memberList>";
+		String mesg = "";
+		JSONObject jObj = new JSONObject();
+		JSONArray jList = new JSONArray();
+		
+		if (useXmlMessageFormat) {		
+			mesg = "<operation>fullSyncPrivilege</operation>";
+			mesg = mesg + "<description><![CDATA[" + group.getDescription()
+					+ "]]></description>";
+			mesg = mesg + "<name><![CDATA[" + group.getName() + "]]></name>";
+			mesg = mesg + "<memberList>";
 
-		for (Subject subject : subjects) {
+			for (Subject subject : subjects) {
 				if (subject.getSourceId().equals("ldap")){
 					mesg = mesg + "<member><![CDATA[" + subject.getId()
 								+ "]]></member>";
-				}else{
+				} else {
 					mesg = mesg + "<member><![CDATA[" + subject.getName()
-							+ "]]></member>";
+								+ "]]></member>";
 				}
-		}
+			}
+			mesg = mesg + "</memberList>";
+		} else {
+			jObj.put ("operation", "fullSyncPrivilege");
+			jObj.put ("description", group.getDescription());
+			jObj.put ("name", group.getName());
 
-		mesg = mesg + "</memberList>";
+			for (Subject subject : subjects) {
+				if (subject.getSourceId().equals("ldap")){
+					jList.add (subject.getId());
+				} else {
+					jList.add (subject.getName());
+				}
+			}
+			jObj.put ("memberList", jList);
+			mesg = jObj.toJSONString();	
+		}
+		
 		return mesg;
 	}
 
+
 	private static String getIsMemberOfFullSyncMessage(Group group,
 			Set<Member> members) {
-		String mesg = "<operation>fullSyncIsMemberOf</operation>";
-		mesg = mesg + "<name><![CDATA[" + group.getName() + "]]></name>";
-		mesg = mesg + "<memberList>";
+		String mesg = "";
+		JSONObject jObj = new JSONObject();
+		JSONArray jList = new JSONArray();
+		
+		if (useXmlMessageFormat) {		
+			mesg = "<operation>fullSyncIsMemberOf</operation>";
+			mesg = mesg + "<name><![CDATA[" + group.getName() + "]]></name>";
+			mesg = mesg + "<memberList>";
 
-		for (Member member : members) {
-			if (member.getSubjectType().toString().equals("person")) {
-				mesg = mesg + "<member><![CDATA[" + member.getSubjectId()
-						+ "]]></member>";
+			for (Member member : members) {
+				if (member.getSubjectType().toString().equals("person")) {
+					mesg = mesg + "<member><![CDATA[" + member.getSubjectId()
+							+ "]]></member>";
+				}
 			}
+			mesg = mesg + "</memberList>";
+		} else {
+			jObj.put ("operation", "fullSyncIsMemberOf");
+			jObj.put ("name", group.getName());
+			
+			for (Member member : members) {
+				if (member.getSubjectType().toString().equals("person")) {
+					jList.add (member.getSubjectId());
+				}
+			}
+			jObj.put ("memberList", jList);
+			mesg = jObj.toJSONString();	
 		}
-
-		mesg = mesg + "</memberList>";
 		return mesg;
 	}
 
@@ -686,9 +1020,6 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 		session = null;
 		producer = null;
 
-		if (!ConsumerProperties.propertiesOk()) {
-			return "Required properties not available";
-		}
 
 		try {
 			String delims = "[,]";
@@ -885,7 +1216,7 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 	private static void syncGroup(GrouperSession session, String groupName) {
 		Group group = GroupFinder.findByName(session, groupName, false);
 		if (group != null) {
-			LOG.debug("Full sync group: " + group.getName());
+			LOG.debug("Sync for group: " + group.getName());
 			Set<Member> members = getAllGroupMembers(group, session);
 
 			String mesg = getGroupFullSyncMessage(group, members);

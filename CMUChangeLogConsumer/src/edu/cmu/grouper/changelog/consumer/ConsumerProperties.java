@@ -17,17 +17,22 @@ import java.lang.Exception;
 import java.net.URL;
 import java.util.Properties;
 
+//import edu.internet2.middleware.grouperClient.config.ConfigPropertiesCascadeBase;
 import edu.internet2.middleware.grouper.app.loader.GrouperLoaderConfig;
 
-import org.apache.commons.logging.Log;
-import org.apache.commons.logging.LogFactory;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 
 /**
  * Act on member changes
  */
 public class ConsumerProperties {
 
-	private final static Log log = LogFactory.getLog(edu.cmu.grouper.changelog.consumer.ConsumerMain.class);
+	private static final Logger LOG = LoggerFactory.getLogger(edu.cmu.grouper.changelog.consumer.ConsumerMain.class);
+	
+	//private final static Log log = LogFactory.getLog(edu.cmu.grouper.changelog.consumer.ConsumerMain.class);
 	private static final String PARAMETER_NAMESPACE = "changeLog.consumer.";
 	
 	private static String brokerURL = null;
@@ -35,12 +40,13 @@ public class ConsumerProperties {
 	private static String password = null;
 	private static String targets = null;
 	private static String usduExcludes = null;
-	private static String exceptionStemsConfig = null;
+	private static String allowLargeGroupsAttribute = null;
 	private static int maxMembers = 0;
 	private static String syncAttribute = null;
 	private static String syncType = null;
+	private static boolean useXmlMessageFormat = false;
 
-	private static void ConsumerProperties(String consumerName) {
+	public ConsumerProperties(String consumerName) {
 		
 		final String qualifiedParameterNamespace = PARAMETER_NAMESPACE + consumerName + ".";
 
@@ -51,43 +57,48 @@ public class ConsumerProperties {
 			
 			brokerURL = 
 					GrouperLoaderConfig.retrieveConfig().propertyValueStringRequired(qualifiedParameterNamespace + "brokerURL");
-			LOG.debug("CMU Consumer - Setting brokerURL to {}", brokerURL);
+					LOG.debug("CMU Consumer - Setting brokerURL to {}", brokerURL);
 			        
 			username = 
 					GrouperLoaderConfig.retrieveConfig().propertyValueStringRequired(qualifiedParameterNamespace + "username");
-			LOG.debug("CMU Consumer - Setting username to {}", username);
+					LOG.debug("CMU Consumer - Setting username to {}", username);
 			        
 			password = 
 					GrouperLoaderConfig.retrieveConfig().propertyValueString(qualifiedParameterNamespace + "password", "");
-			LOG.debug("CMU Consumer - Setting password to {}", password);
+					LOG.debug("CMU Consumer - Setting password to {}", password);
 			
 			targets = 
 					GrouperLoaderConfig.retrieveConfig().propertyValueStringRequired(qualifiedParameterNamespace + "targets");
-			LOG.debug("CMU Consumer - Setting targets to {}", targets);
+					LOG.debug("CMU Consumer - Setting targets to {}", targets);
 			   
 			usduExcludes = 
 					GrouperLoaderConfig.retrieveConfig().propertyValueString(qualifiedParameterNamespace + "usduExcludes", "");
-			LOG.debug("CMU Consumer - Setting usduExcludes to {}", usduExcludes);
+					LOG.debug("CMU Consumer - Setting usduExcludes to {}", usduExcludes);
 			
-			exceptionStemsConfig = 
-					GrouperLoaderConfig.retrieveConfig().propertyValueString(qualifiedParameterNamespace + "exceptionStems", "");
-			LOG.debug("CMU Consumer - Setting exceptionStemsConfig to {}", exceptionStemsConfig);
+			allowLargeGroupsAttribute = 
+					GrouperLoaderConfig.retrieveConfig().propertyValueString(qualifiedParameterNamespace + "allowLargeGroupsAttribute", "");
+					LOG.debug("CMU Consumer - Setting allowLargeGroupsAttribute to {}", allowLargeGroupsAttribute);
 			
 			maxMembers = 
-					GrouperLoaderConfig.retrieveConfig().propertyValueInt(qualifiedParameterNamespace + "maxMembers", -1);
-			LOG.debug("CMU Consumer - Setting maxMembers to {}", maxMembers);
+					GrouperLoaderConfig.retrieveConfig().propertyValueInt(qualifiedParameterNamespace + "maxMembers", 1000);
+					LOG.debug("CMU Consumer - Setting maxMembers to {}", maxMembers);
 			
 			syncAttribute = 
 					GrouperLoaderConfig.retrieveConfig().propertyValueStringRequired(qualifiedParameterNamespace + "syncAttribute");
-			LOG.debug("CMU Consumer - Setting syncAttribute to {}", syncAttribute);
+					LOG.debug("CMU Consumer - Setting syncAttribute to {}", syncAttribute);
 			   		
 			syncType = 
 					GrouperLoaderConfig.retrieveConfig().propertyValueString(qualifiedParameterNamespace + "syncType", "basic");
-			LOG.debug("CMU Consumer - Setting syncType to {}", syncType);
+					LOG.debug("CMU Consumer - Setting syncType to {}", syncType);
+					
+			useXmlMessageFormat = 
+					GrouperLoaderConfig.retrieveConfig().propertyValueBoolean(qualifiedParameterNamespace + "useXmlMessageFormat", true);
+					LOG.debug("CMU Consumer - Setting useXmlMessageFormat to {}", useXmlMessageFormat);
+		
 			   				
 
 		} catch (Exception e) {
-			log.error("Error reading configuration values: " + e);
+			LOG.error("Error reading configuration values: " + e);
 		}
 	}
 
@@ -112,24 +123,8 @@ public class ConsumerProperties {
 		return usduExcludes;
 	}
 	
-	public static String[] getExceptionStems() {
-			String delims = "[,]";
-
-		// check for no stems
-		if (exceptionStemsConfig == null) {
-			log.warn ("no exception stems");
-			return null;
-		} else {
-			// Split multiple stems into array
-			String[] exceptionStems = exceptionStemsConfig.split( delims );
-			// Remove * if added
-			for ( int i=0; i< exceptionStems.length; i++ ) { 
-				if (exceptionStems[i].endsWith("*")) {
-					exceptionStems[i] = exceptionStems[i].substring(0, exceptionStems.length - 1);
-				}
-			}
-		       return exceptionStems;
-		}		
+	public static String getAllowLargeGroupsAttribute() {
+		       return allowLargeGroupsAttribute;
 	}
 	
 
@@ -143,6 +138,10 @@ public class ConsumerProperties {
 	
 	public static String getSyncType() {
 		return syncType;
+	}
+	
+	public static boolean getUseXmlMessageFormat() {
+		return useXmlMessageFormat;
 	}
 	
 
