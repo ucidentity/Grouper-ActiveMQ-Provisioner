@@ -23,9 +23,10 @@ You will need a separate queue for each service (AD, LDAP, LDAP IsMemberOf, othe
 
 * Configure attributes for each provisioning target within Grouper. Example:
 The Grouper UI utilizes a separate plug-in for setting the provisioning attribute. This attribute is used to determine provisioning for LDAP IsMemberOf attribute. Access to the setting are allowed for most department groups.
-etc:attribute:provisioningTargets:all:syncToLdapIMO
 
-The attribute for allowLargeGroups (etc:attribute:provisioningTargets:all:allowLargeGroups) should be only set by admin staff.
+ etc:attribute:provisioningTargets:all:syncToLdapIMO
+
+ The attribute for allowLargeGroups (etc:attribute:provisioningTargets:all:allowLargeGroups) should be only set by admin staff.
 
 * Add configuration info to grouper-loader.properties file. Example for LDAP IsMemberOf provisioning:
 ````
