@@ -1,6 +1,6 @@
-AD/LDAP ActiveMQ Grouper Provisioner
-(code base is from CMU)
-==============================
+# AD/LDAP ActiveMQ Grouper Provisioner
+#     (code base is from CMU)
+
 
 ### Features
 The AD/LDAP ActiveMQ Grouper provisioner has the following features:
