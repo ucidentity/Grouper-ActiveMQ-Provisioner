@@ -28,14 +28,3 @@ Setup separate directories for each downstream component. For example, AD, LDAP,
 
 
 ### Acknowledgements
-Unicon's work on the Google Apps Grouper Provisioner project is funded through a project with Oregon State University. It is intended that the products (source code and deliverables) of this project will be donated to the Grouper project, and that rights will be assigned to Internet2.
-
-These individuals have provided guidance through out the development process:
-
-* Andy Morgan, Oregon State University 
-* Erica Lomax, Oregon State University
-* David Langenberg, University of Chicago
-* Chris Hyzer, University of Pennsylvania
-* Jeff Pasch, New York University
-* Gary Chapman, New York University
-* Madan Dorairaj, New York University
