@@ -22,7 +22,7 @@ The AD/LDAP ActiveMQ Grouper provisioner has the following features:
 You will need a separate queue for each service (AD, LDAP, LDAP IsMemberOf, other service). We are currently supporting AD and LDAP IsMemberOf (berkeleyEduIsMemberOf). A queue name is ldap.isMemberOf
 
 * Configure attributes for each provisioning target within Grouper. Example:
-The Grouper UI utilizes a separate plug-in for setting the provisioning attribute. <https://github.com/Unicon/grouper-provisioning-target-ui?files=1>. This attribute is used to determine provisioning for LDAP IsMemberOf attribute. Access to the sync attribute setting is allowed for most department group admins.
+The Grouper UI utilizes a separate plug-in for setting the provisioning attribute. See  <https://github.com/Unicon/grouper-provisioning-target-ui>. This attribute is used to determine provisioning for LDAP IsMemberOf attribute. Access to the sync attribute setting is allowed for most department group admins.
 
    * etc:attribute:provisioningTargets:all:syncToLdapIMO
 
