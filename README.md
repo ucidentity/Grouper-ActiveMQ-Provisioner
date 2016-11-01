@@ -1,5 +1,4 @@
 # AD/LDAP ActiveMQ Grouper Provisioner
-#     (code base is from CMU)
 
 
 ### Features
@@ -20,6 +19,24 @@ The AD/LDAP ActiveMQ Grouper provisioner has the following features:
 Add the change log consumer jar file to lib/custom along with other jar files from lib. Alternately, they can exist in their own directory if added to the class path.
 
 Add configuration info to grouper-loader.properties file.
+````
+changeLog.consumer.ldapIMO.class = edu.cmu.grouper.changelog.consumer.ConsumerMain
+changeLog.consumer.ldapIMO.quartzCron = 0 * * * * ?
+> #changeLog.consumer.ldapIMO.targets=dev.grouper.changelog.ldapGroup
+changeLog.consumer.ldapIMO.targets=dev.ldap.isMemberOf
+changeLog.consumer.ldapIMO.isMemberOfQueue=test.389.groups
+changeLog.consumer.ldapIMO.usduExcludes=Apps:OIM-DEV02:exchange,Apps:OIM-DEV02:activeDirectory
+changeLog.consumer.ldapIMO.brokerURL=failover:(ssl://amq-t1.calnet.1918.berkeley.edu:61617,ssl://amq-t1.calnet.1918.berkeley.edu:61617)?randomize=false
+changeLog.consumer.ldapIMO.username=grouper
+changeLog.consumer.ldapIMO.password=
+changeLog.consumer.ldapIMO.maxMembers=1000
+changeLog.consumer.ldapIMO.syncAttribute=etc:attribute:provisioningTargets:all:syncToLdap
+changeLog.consumer.ldapIMO.allowLargeGroupsAttribute=etc:attribute:provisioningTargets:all:allowLargeGroups
+# syncType is either basic or isMemberOf, default is basic
+changeLog.consumer.ldapIMO.syncType=isMemberOf
+# useXmlMessageFormat is true or false, default is true
+changeLog.consumer.ldapIMO.useXmlMessageFormat=false
+````
 
 Setup ActiveMQ queues. You will need a separate queue for each service (AD, LDAP, LDAP IsMemberOf, other service). We are currently supporting AD and LDAP IsMemberOf (berkeleyEduIsMemberOf). 
 
