@@ -123,3 +123,4 @@ There are still a few items to complete.
 * Add support for Stem name changes in AD. This will require an additional message within the changeLogConsumer and provisioners.
 * Add support for removing stems that no longer have groups within AD since it uses a bushy name structure.
 * Add sync attribute and large group support to full sync methods.
+* After going through the grouper/googleapps code changes that the grouper project added, I see their solution for the delete group issue using PIT table is the better way to go. We should use this in this code base. 
