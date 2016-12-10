@@ -1,0 +1,28 @@
+version: "2"
+
+services:
+  grouper:
+    build: ./grouper/
+    depends_on: 
+     - activemq
+    ports:
+     - 8080:8080
+  
+  activemq:
+    environment:
+     - ACTIVEMQ_MIN_MEMORY=512
+     - ACTIVEMQ_MAX_MEMORY=1024
+    image: rmohr/activemq:5.14.1
+    ports:
+     - 61616:61616 
+     - 8161:8161
+  
+  provisioner:
+    build: ./provisioner
+    depends_on:
+     - activemq
+     - ldap
+
+  ldap:
+    build: ./ldap/
+  
