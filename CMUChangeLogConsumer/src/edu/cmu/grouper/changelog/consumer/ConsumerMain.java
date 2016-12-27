@@ -741,7 +741,7 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 			mesg = mesg + "<name><![CDATA[" + stemName + "]]></name>";
 			mesg = mesg + "<oldname><![CDATA[" + stemOldName + "]]></oldname>";
 		} else {
-			mesg = "{\"operation\":\"renameGroup\",";
+			mesg = "{\"operation\":\"renameStem\",";
 			mesg = mesg + "\"name\":\"" + stemName + "\",";
 			mesg = mesg + "\"oldname\":\"" + stemOldName + "\"}";
 		}
