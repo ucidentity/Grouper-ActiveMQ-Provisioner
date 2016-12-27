@@ -577,6 +577,16 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 				String mesgIsMemberOf = getGroupDeletedIsMemberOfMessage(groupName);						
 				writeMessage(mesgIsMemberOf, groupName, currentId);
 			}
+
+			Group group = GroupFinder.findByName(gs, groupName, false);
+			if (group != null) {
+				Set<Group> peer = group.getParentStem().getChildGroups();
+				if (peer.size() == 0){
+					String mesgRemoveStem = getStemDeletedMessage(group.getParentStemName());
+					writeMessage(mesgRemoveStem, groupName, currentId);
+				}
+			}
+			
 		syncedObjects.remove(groupName);
 		}
 		
@@ -662,6 +672,18 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 		} else {
 			mesg = "{\"operation\":\"deleteGroup\",";
 			mesg = mesg + "\"name\":\"" + groupName + "\"}";
+		}
+		return mesg;
+	}
+
+	private String getStemDeletedMessage(String stemName) {
+		String mesg = "";
+		if (useXmlMessageFormat) {
+			mesg = "<operation>deleteStem</operation>";
+			mesg = mesg + "<name><![CDATA[" + stemName + "]]></name>";
+		} else {
+			mesg = "{\"operation\":\"deleteStem\",";
+			mesg = mesg + "\"name\":\"" + stemName + "\"}";
 		}
 		return mesg;
 	}
