@@ -468,7 +468,7 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 	}
 	
 	
-	private boolean groupOk (String groupName) {
+	protected boolean groupOk (String groupName) {
 		LOG.debug ("groupOk (groupName: {})", groupName);
 
 		// Check if group exists
@@ -1125,11 +1125,13 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 			GrouperSession session = GrouperSession.start(SubjectFinder
 					.findRootSubject());
 
+			ConsumerMain consumer = new ConsumerMain();
+
 			if (line.hasOption("all")) {
-				syncAllGroups(session);
+				syncAllGroups(session, consumer);
 			} else if (line.hasOption("allpriv")) {
-				syncAllPrivs(session);
-			} else if (line.hasOption("group")) {
+				syncAllPrivs(session, consumer);
+			} else if (line.hasOption("group") && consumer.groupOk(line.getOptionValue("group"))) {
 				if (line.hasOption("priv")) {
 					syncPriv(session, line.getOptionValue("group"));
 				}else{
@@ -1163,7 +1165,7 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 
 	}
 
-	private static void syncAllGroups(GrouperSession session) {
+	private static void syncAllGroups(GrouperSession session, ConsumerMain consumer) {
 		LOG.debug("In syncAllGroups");
 		//Set<Group> groups = GroupFinder.findAllByType(session,
 		//		GroupTypeFinder.find("base", false));
@@ -1174,42 +1176,53 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 		LOG.debug("Here is the group list: " + groups);
 
 		for (Group group : groups) {
-			LOG.debug("Full sync group: " + group.getName());
-			Set<Member> members = getAllGroupMembers(group, session);
 
-			String mesg = getGroupFullSyncMessage(group, members);
-			String mesgIsMemberOf = getIsMemberOfFullSyncMessage(group, members);
-			LOG.debug(mesg);
-			LOG.debug(mesgIsMemberOf);
+			if (consumer.groupOk(group.getName())) {
+				LOG.debug("Full sync group: " + group.getName());
+				Set<Member> members = getAllGroupMembers(group, session);
 
-			try {
-				writeMessage(mesg, group.getName(), 0);
-				writeMessage(mesgIsMemberOf, group.getName(), 0);
-			} catch (Exception e) {
-				LOG.error("Error sending activemq message ", e);
+				String mesg = getGroupFullSyncMessage(group, members);
+				String mesgIsMemberOf = getIsMemberOfFullSyncMessage(group, members);
+				LOG.debug(mesg);
+				LOG.debug(mesgIsMemberOf);
+
+				try {
+					writeMessage(mesg, group.getName(), 0);
+					writeMessage(mesgIsMemberOf, group.getName(), 0);
+				} catch (Exception e) {
+					LOG.error("Error sending activemq message ", e);
+				}
+				LOG.info("Full Sync completed sucessfully for group: "
+						+ group.getName());
+			} else {
+				LOG.debug("Skipping Full Sync for group: "
+						+ group.getName());
 			}
-			LOG.info("Full Sync completed sucessfully for group: "
-					+ group.getName());
 		}
 	}
 
-	private static void syncAllPrivs(GrouperSession session) {
+	private static void syncAllPrivs(GrouperSession session, ConsumerMain consumer) {
 		Set<Group> groups = GroupFinder.findAllByType(session,
 				GroupTypeFinder.find("base", false));
 
 		for (Group group : groups) {
-			LOG.debug("Full sync privilege for group: " + group.getName());
-			Set<Subject> subjects = group.getAdmins();
-			subjects.addAll(group.getUpdaters());
-			String mesg = getGroupPrivilegeFullSyncMessage(group, subjects);
-			LOG.debug(mesg);
-			try {
-				writeMessage(mesg, group.getName(), 0);
-			} catch (Exception e) {
-				LOG.error("Error sending activemq message ", e);
+			if (consumer.groupOk(group.getName())) {
+				LOG.debug("Full sync privilege for group: " + group.getName());
+				Set<Subject> subjects = group.getAdmins();
+				subjects.addAll(group.getUpdaters());
+				String mesg = getGroupPrivilegeFullSyncMessage(group, subjects);
+				LOG.debug(mesg);
+				try {
+					writeMessage(mesg, group.getName(), 0);
+				} catch (Exception e) {
+					LOG.error("Error sending activemq message ", e);
+				}
+				LOG.info("Full Sync privlege completed sucessfully for group: "
+						+ group.getName());
+			} else {
+				LOG.debug("Skipping Full Sync privlege for group: "
+						+ group.getName());
 			}
-			LOG.info("Full Sync privlege completed sucessfully for group: "
-					+ group.getName());
 		}
 	}
 
