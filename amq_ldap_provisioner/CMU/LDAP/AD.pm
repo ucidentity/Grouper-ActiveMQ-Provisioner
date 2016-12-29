@@ -238,42 +238,10 @@ sub createGroup {
 	return $result;
 }
 
-<<<<<<< HEAD
-=======
-
-
->>>>>>> add-check-for-attribute
 sub renameGroup {
         my ( $self, $olddn, $groupName ) = @_;
         $log->debug("Calling CMU::LDAP::AD::renameGroup(self, $olddn, $groupName)");
 
-<<<<<<< HEAD
-		# Get the new rdn of the group
-        my $newrdn = $self->{_groupprefix} . $self->getSAMAccountNameFromGroupName( $groupName );
-        my $newsuperior = $self->getNewSuperior( $groupName );
-		
-		# Make sure all the OUs as part of the DN exist
-		my @dn_parts     = split( ',', $newsuperior );
-		my @syncou_parts = split( ',', $self->{_syncou} );
-
-		my $result;
-		my @oudn = ();
-		for my $i ( 1 .. $#dn_parts - $#syncou_parts ) {
-			my $ou = join( ",", @dn_parts );
-			push( @oudn, $ou );
-			shift(@dn_parts);
-		}
-
-		@oudn = reverse(@oudn);
-
-		foreach (@oudn) {
-			if ( !$self->checkOUExists($_) ) {
-				$result = $self->createOU($_);
-			}
-		}
-		
-		# Find the group in AD before change
-=======
 	# Get the new rdn of the group
         my $newrdn = $self->{_groupprefix} . $self->getSAMAccountNameFromGroupName( $groupName );
         my $newsuperior = $self->getNewSuperior( $groupName );
@@ -299,19 +267,12 @@ sub renameGroup {
 	}
 		
 	# Find the group in AD before change
->>>>>>> add-check-for-attribute
         my @attrs = ( $self->{_dnattribute} );
         my $entry =
           $self->getLdapEntry( "(objectClass=" . $self->{_groupobjectclass} . ")",
                 \@attrs, $olddn );
-<<<<<<< HEAD
-        $log->debug("in renameGroup. Right after getLdapEntry");
-
-		# We found it so create the moddn request
-=======
 
 	# We found it so create the moddn request
->>>>>>> add-check-for-attribute
         if ( defined $entry ) {
                 $entry->changetype( 'moddn' );
                 $entry->add ( 'newrdn' => $newrdn );
@@ -350,33 +311,6 @@ sub renameGroup {
 
 
 sub getNewSuperior {
-<<<<<<< HEAD
-        my ( $self, $groupname ) = @_;
-        $log->debug("Calling CMU::LDAP::AD::getSuperior(self, $groupname)");
-
-        my @list  = split( ':', $groupname );
-        pop @list;
-        my $count = 0;
-
-        foreach my $token (@list) {
-                if ( $count != $#list ) {
-                        $token = join( "=", "OU", escape_dn_value($token) );
-                }
-                else {
-                        $token = join( "=", "OU", escape_dn_value($token) );
-                }
-                $count++;
-        }
-
-        my $dn = join( ",", reverse(@list), $self->{_syncou} );
-
-        $log->debug( "from groupname " . $groupname . " the new superior is " . $dn );
-
-        return $dn;
-}
-
-
-=======
 	my ( $self, $groupname ) = @_;
 	$log->debug("Calling CMU::LDAP::AD::getSuperior(self, $groupname)");
 
@@ -403,7 +337,6 @@ sub getNewSuperior {
 
 
 
->>>>>>> add-check-for-attribute
 sub getGroupMembers {
 	my ( $self, $groupdn ) = @_;
 	$log->debug("Calling CMU::LDAP::AD::getMembers( self, $groupdn)");
