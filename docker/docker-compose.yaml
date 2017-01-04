@@ -14,10 +14,11 @@ services:
      - ACTIVEMQ_MAX_MEMORY=1024
     image: rmohr/activemq:5.14.1
     ports:
-     - 61616:61616 
+     - 61613:61613
      - 8161:8161
   
   provisioner:
+    command: bash -c "sleep 20; perl main.pl"
     build: ./provisioner
     depends_on:
      - activemq
@@ -25,4 +26,6 @@ services:
 
   ldap:
     build: ./ldap/
+    ports:
+     - 389:389
   

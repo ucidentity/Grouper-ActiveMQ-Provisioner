@@ -6,7 +6,7 @@ pushd ../CMUChangeLogConsumer
 ant dist
 
 popd
-cp ../CMUChangeLogConsumer/build/cmuConsumer-1.0.tar.gz ./grouper/temp/
-cp -r ../amq_ldap_provisioner/ ./provisioner/temp/amq_ldap_provisioner/
+cp -p ../CMUChangeLogConsumer/build/cmuConsumer-1.0.tar.gz ./grouper/temp/
+cp -pr ../amq_ldap_provisioner/ ./provisioner/temp/amq_ldap_provisioner/
 
 docker-compose build

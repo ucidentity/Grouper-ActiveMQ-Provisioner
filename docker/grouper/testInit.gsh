@@ -30,7 +30,10 @@ attrDefName.setDescription("The food to bring to parties.");
 attrDefName.store();
 
 //-------
+obliterateStem("loader", false, false);
 
+//-------
 addRootStem("test", "test");
 addStem("test", "provisionEnabledGroups", "Provision Enabled Groups");
+addGroup("test:provisionEnabledGroups", "test", "test");
 grantPriv("test:provisionEnabledGroups", "jsmith", NamingPrivilege.CREATE);
