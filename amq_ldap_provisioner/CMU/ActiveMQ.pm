@@ -574,6 +574,23 @@ sub processMessageFullSyncIsMemberOf {
 		}
 
 		my $groupdn = $ldap->getGroupDn( $data->{"name"} );
+
+		eval {
+			my @attrs = ();
+			my $entry =
+			  $ldap->getLdapEntry(
+				"(objectClass=" . $ldap->{_groupobjectclass} . ")",
+				\@attrs, $groupdn );
+
+			if ( !defined $entry ) {
+				$ldap->createGroup($groupdn);
+			}
+			else {
+				$log->info( "Skipping create group as group  " . $groupdn
+					  . " already exists" );
+			}
+		};
+		
 		@ldapmembers            = $ldap->getUidByIsMemberOf($groupdn);
 		
 		$_ = lc for @groupermembers;
