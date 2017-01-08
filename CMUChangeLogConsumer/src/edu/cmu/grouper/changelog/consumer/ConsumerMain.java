@@ -388,9 +388,9 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 					
 					AttributeAssign theAttributeAssign = AttributeAssignFinder.findById(	
 							changeLogEntry.retrieveValueForLabel(ChangeLogLabels.ATTRIBUTE_ASSIGN_VALUE_ADD.attributeAssignId), false);
-					final Group theGroup = theAttributeAssign.getOwnerGroup();
+					final Group theGroup = theAttributeAssign != null ? theAttributeAssign.getOwnerGroup() : null;
 					boolean isGroup = (theGroup != null) ? true : false;
-					final Stem theStem = theAttributeAssign.getOwnerStem();
+					final Stem theStem = theAttributeAssign != null ? theAttributeAssign.getOwnerStem() : null;
 					boolean isStem = (theStem != null) ? true : false;
 					
 	
