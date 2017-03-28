@@ -290,12 +290,6 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 						}
 					}
 				} else if (changeLogEntry
-							.equalsCategoryAndAction(ChangeLogTypeBuiltin.MEMBER_ADD)) {
-								
-						for (ChangeLogLabels.MEMBER_ADD c : ChangeLogLabels.MEMBER_ADD.values())
-								    LOG.info("Member_add value: " + c);
-						
-				} else if (changeLogEntry
 						.equalsCategoryAndAction(ChangeLogTypeBuiltin.MEMBERSHIP_DELETE)) {
 					groupName = changeLogEntry
 							.retrieveValueForLabel(ChangeLogLabels.MEMBERSHIP_DELETE.groupName);
