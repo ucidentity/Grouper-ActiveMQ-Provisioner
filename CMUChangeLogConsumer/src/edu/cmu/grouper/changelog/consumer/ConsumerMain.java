@@ -103,10 +103,9 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 		String password;
 		
 		// initialize this consumer's consumerName from the change log metadata
-        if (consumerName == null) {
             consumerName = changeLogProcessorMetadata.getConsumerName();
             LOG.debug("CMU Consumer Name '{}' - Setting name.", consumerName);
-        }
+       
         
 		ConsumerProperties properties = new ConsumerProperties(consumerName);
 
