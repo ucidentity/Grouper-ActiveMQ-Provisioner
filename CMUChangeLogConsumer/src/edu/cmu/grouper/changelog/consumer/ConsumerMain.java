@@ -186,8 +186,10 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 						// conditions where a stem is in use in the downstream system and either the attribute 
 						// isn't set to yes on the stem or any of its groups.
 						if (stem != null) {
-							String mesg = getStemRenamedMessage(stemName, oldStemName);
-							writeMessage(mesg, stemName, currentId);
+							if (basicSyncType) {
+								String mesg = getStemRenamedMessage(stemName, oldStemName);
+								writeMessage(mesg, stemName, currentId);
+							}
 						} else {
 						   LOG.info ("stem " + stemName + " will not be renamed.");
 						}					
