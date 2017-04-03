@@ -314,6 +314,7 @@ sub renameGroup {
                         $log->info( "Renamed AD group " . $olddn . " with " . $newrdn);
                 }
 
+				# Now we need to change the SAMAcctName
 				# Find the group in AD before change
 		        @attrs = ( $self->{_dnattribute} );
 		        $entry =
