@@ -182,10 +182,14 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 					} else {
 
 						Stem stem = StemFinder.findByName(gs, stemName, false);
-
-						if (stem != null && isAttributeSetToYesOnStem(stem, syncAttribute)) {
-							String mesg = getStemRenamedMessage(stemName, oldStemName);
-							writeMessage(mesg, stemName, currentId);
+						// We will send a message regardless of the sync attribute, since there are serveral 
+						// conditions where a stem is in use in the downstream system and either the attribute 
+						// isn't set to yes on the stem or any of its groups.
+						if (stem != null) {
+							if (basicSyncType) {
+								String mesg = getStemRenamedMessage(stemName, oldStemName);
+								writeMessage(mesg, stemName, currentId);
+							}
 						} else {
 						   LOG.info ("stem " + stemName + " will not be renamed.");
 						}					

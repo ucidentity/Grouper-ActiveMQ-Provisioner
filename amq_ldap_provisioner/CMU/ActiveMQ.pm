@@ -483,7 +483,7 @@ sub processMessageChangeLog {
 		}
 		elsif ( $data->{"operation"} eq "addPrivilege" ) {
 			my $memberdn = $ldap->getMemberDn( $data->{"memberId"} );
-			if ( defined $memberdn ) {
+			if ( defined $memberdn && $self->{_env} ne "AD" ) {
 				$ldap->addGroupOwner( $memberdn, $groupdn );
 			}
 			else {
@@ -495,7 +495,7 @@ sub processMessageChangeLog {
 		}
 		elsif ( $data->{"operation"} eq "removePrivilege" ) {
 			my $memberdn = $ldap->getMemberDn( $data->{"memberId"} );
-			if ( defined $memberdn ) {
+			if ( defined $memberdn && $self->{_env} ne "AD" ) {
 				$ldap->removeGroupOwner( $memberdn, $groupdn );
 			}
 			else {
@@ -549,6 +549,22 @@ sub processMessageChangeLog {
 					  . " as old or new value for group name is empty "
 				);
 			}			
+		}
+		elsif ( $data->{"operation"} eq "renameStem" ) {
+			if (   $data->{"name"} ne ''
+				&& $data->{"oldname"} ne '' )
+			{
+				my $olddn = $ldap->getStemDn( $data->{"oldname"} );
+				if ($ldap->checkOUExists($olddn)) {
+					$ldap->renameStem($olddn, $data->{"name"} );
+				}
+			}
+			else {
+				$log->info( "Skipping rename stem for new name " . $data->{"name"}
+					  . " and old name " . $data->{"oldname"}
+					  . " as old or new value for stem name is empty "
+				);
+			}
 		}
 	};
 	if ($@) {

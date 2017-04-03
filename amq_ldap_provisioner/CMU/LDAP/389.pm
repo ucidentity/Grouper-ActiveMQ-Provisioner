@@ -48,8 +48,8 @@ sub getInstance {
 		$_389->{_peoplebase}       = $CMU::CFG::_CFG{'389'}{'peoplebase'};
 		$_389->{_server}           = $CMU::CFG::_CFG{'389'}{'server'};
 		$_389->{_groupobjectclass} = $CMU::CFG::_CFG{'389'}{'groupobjectclass'};
-		$_389->{_personobjectclass} =
-		  $CMU::CFG::_CFG{'389'}{'personobjectclass'};
+		$_389->{_personobjectclass} = $CMU::CFG::_CFG{'389'}{'personobjectclass'};
+		$_389->{_ouobjectclass}    = $CMU::CFG::_CFG{'389'}{'ouobjectclass'};
 		$_389->{_memberattribute}  = $CMU::CFG::_CFG{'389'}{'memberattribute'};
 		$_389->{_dnattribute}     = $CMU::CFG::_CFG{'389'}{'dnattribute'};
 		$_389->{_memberprefix}    = $CMU::CFG::_CFG{'389'}{'memberprefix'};
@@ -430,6 +430,18 @@ sub getGroupDn {
 	my $dn = join( ",", $groupname, $self->{_syncou} );
 
 	$log->debug( "groupname " . $groupname . " converted to DN " . $dn );
+	return $dn;
+}
+
+sub getStemDn {
+	my ( $self, $stemname ) = @_;
+	$log->debug("Calling CMU::LDAP::389::getStemDn(self, $stemname)");
+
+	$stemname =  "OU=" . escape_dn_value($stemname);
+
+	my $dn = join( ",", $stemname, $self->{_syncou} );
+
+	$log->debug( "stemname " . $stemname . " converted to DN " . $dn );
 	return $dn;
 }
 

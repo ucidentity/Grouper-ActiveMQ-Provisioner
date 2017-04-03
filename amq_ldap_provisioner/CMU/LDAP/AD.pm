@@ -51,6 +51,7 @@ sub getInstance {
 		$_ad->{_peoplebase}        = $CMU::CFG::_CFG{'AD'}{'peoplebase'};
 		$_ad->{_groupobjectclass}  = $CMU::CFG::_CFG{'AD'}{'groupobjectclass'};
 		$_ad->{_personobjectclass} = $CMU::CFG::_CFG{'AD'}{'personobjectclass'};
+		$_ad->{_ouobjectclass} = $CMU::CFG::_CFG{'AD'}{'ouobjectclass'};
 		$_ad->{_memberattribute}   = $CMU::CFG::_CFG{'AD'}{'memberattribute'};
 		$_ad->{_dnattribute}       = $CMU::CFG::_CFG{'AD'}{'dnattribute'};
 		$_ad->{_memberprefix}      = $CMU::CFG::_CFG{'AD'}{'memberprefix'};
@@ -118,6 +119,18 @@ sub getSAMAccountNameFromGroupName {
 	$samaccountname =~ s/[\"\[\]:;|=+*?<>\/\\, ]/-/g;
 	return substr($samaccountname, 0, 256);
 }
+
+
+sub getOUNameFromStemName {
+	my ( $self, $stemname ) = @_;
+	$log->debug(
+		"Calling CMU::LDAP::AD::getOUNameFromStemName( self, $stemname)");
+
+	my $OUName = (split ":", $stemname )[-1];	
+	$OUName =~ s/[\"\[\]:;|=+*?<>\/\\, ]/-/g;
+	return substr($OUName, 0, 256);
+}
+
 
 sub updateSAMAccountName {
 	my ( $self, $dn, $samaccountname ) = @_;
@@ -243,8 +256,11 @@ sub renameGroup {
         $log->debug("Calling CMU::LDAP::AD::renameGroup(self, $olddn, $groupName)");
 
 	# Get the new rdn of the group
-        my $newrdn = $self->{_groupprefix} . $self->getSAMAccountNameFromGroupName( $groupName );
+		my $newSamAcct = $self->getSAMAccountNameFromGroupName( $groupName );
+        my $newrdn = $self->{_groupprefix} . $newSamAcct;
         my $newsuperior = $self->getNewSuperior( $groupName );
+		my $newDn = $self->getGroupDn( $groupName );
+		
 		
 	# Make sure all the OUs as part of the DN exist
 	my @dn_parts     = split( ',', $newsuperior );
@@ -278,7 +294,6 @@ sub renameGroup {
                 $entry->add ( 'newrdn' => $newrdn );
                 $entry->add ( 'deleteoldrdn' => '1' );
                 $entry->add ( 'newsuperior' => $newsuperior );
-                $log->debug("in renameGroup after defined entry added deleteoldrdn. The entry is: " .  $entry->attributes . " " . $entry->changetype . " " . $entry->dn);
 
                 $result = $self->ldapUpdate($entry);
 
@@ -299,15 +314,129 @@ sub renameGroup {
                         $log->info( "Renamed AD group " . $olddn . " with " . $newrdn);
                 }
 
-        }
-        else {
-                $log->info("Skipping renameGroup as ldapentry " . $olddn . " not found ");
-        }
+				# Find the group in AD before change
+		        @attrs = ( $self->{_dnattribute} );
+		        $entry =
+		          $self->getLdapEntry( "(objectClass=" . $self->{_groupobjectclass} . ")",
+		                \@attrs, $newDn );
+
+				# We found it so create the replace request
+			    if ( defined $entry ) {
+
+					$entry->replace( 'sAMAccountName' => $newSamAcct );
+
+					$result = $self->ldapUpdate($entry);
+
+					if ( $result->code ) {
+						if ( ldap_error_name( $result->code ) eq
+							"LDAP_TYPE_OR_VALUE_EXISTS" )
+						{
+							$log->info( $newSamAcct . " already exists for group " .  $newDn );
+						}
+						else {
+							$log->error(
+								"CMU::LDAP::replaceSamAcct Name returned with error name: "
+								  . ldap_error_name( $result->code )
+								  . ", error description: "
+								  . ldap_error_desc( $result->code )
+								  . ", changetype: "
+								  . $entry->changetype()
+								  . ", ldif: "
+								  . $entry->ldif() );
+							die();
+						}
+					}
+					else {
+						$log->info( "Replaced Sam Acct with "
+							  . $newSamAcct
+							  . " for group "
+							  . $newDn );
+					}
+				}
+				else {
+		                $log->info("Skipping replace Sam Acct Name,  " . $newDn . " not found ");
+		        }
+       
+  	  	}
+	    else {
+	            $log->info("Skipping renameGroup as ldapentry " . $olddn . " not found ");
+	    }
 
 
         return $result;
 }
 
+
+sub renameStem {
+        my ( $self, $olddn, $stemName ) = @_;
+        $log->debug("Calling CMU::LDAP::AD::renameStem(self, $olddn, $stemName)");
+
+	# Get the new rdn of the group
+        my $newrdn = "OU=" . $self->getOUNameFromStemName( $stemName );
+        my $newsuperior = $self->getNewSuperior( $stemName );
+		
+	# Make sure all the OUs as part of the DN exist
+	my @dn_parts     = split( ',', $newsuperior );
+	my @syncou_parts = split( ',', $self->{_syncou} );
+
+	my $result;
+	my @oudn = ();
+	for my $i ( 1 .. $#dn_parts - $#syncou_parts ) {
+		my $ou = join( ",", @dn_parts );
+		push( @oudn, $ou );
+		shift(@dn_parts);
+	}
+
+	@oudn = reverse(@oudn);
+
+	foreach (@oudn) {
+		if ( !$self->checkOUExists($_) ) {
+			$result = $self->createOU($_);
+		}
+	}
+	
+	# Find the OU in AD before change
+        my @attrs = ( $self->{_dnattribute} );
+        my $entry =
+          $self->getLdapEntry( "(objectClass=organizationalUnit)",
+                \@attrs, $olddn );
+	
+		
+	# We found it so create the moddn request
+        if ( defined $entry ) {
+                $entry->changetype( 'moddn' );
+                $entry->add ( 'newrdn' => $newrdn );
+                $entry->add ( 'deleteoldrdn' => '1' );
+                $entry->add ( 'newsuperior' => $newsuperior );
+                $log->debug("in renameStem after defined entry added deleteoldrdn. The entry is: " .  $entry->attributes . " " . $entry->changetype . " " . $entry->dn);
+
+                $result = $self->ldapUpdate($entry);
+
+                $log->debug("after ldapUpdate");
+                if ( $result->code ) {
+                                $log->error(
+                                            "CMU::LDAP::389::renameGroup returned with error name: "
+                                          . ldap_error_name( $result->code )
+                                          . ", error description: "
+                                          . ldap_error_desc( $result->code )
+                                          . ", changetype: "
+                                          . $entry->changetype()
+                                          . ", ldif: "
+                                          . $entry->ldif() );
+                                die();
+                }
+                else {
+                        $log->info( "Renamed AD OU " . $olddn . " with " . $newrdn);
+                }
+
+        }
+        else {
+                $log->info("Skipping renameStem as ldapentry " . $olddn . " not found ");
+        }
+
+
+        return $result;
+}
 
 
 sub getNewSuperior {
@@ -434,6 +563,23 @@ sub getGroupDn {
 	my $dn = join( ",", reverse(@list), $self->{_syncou} );
 
 	$log->debug( "groupname " . $groupname . " converted to DN " . $dn );
+	return $dn;
+}
+
+sub getStemDn {
+	my ( $self, $stemname ) = @_;
+	$log->debug("Calling CMU::LDAP::AD::getStemDn(self, $stemname)");
+
+	my @list  = split( ':', $stemname );
+	my $count = 0;
+
+	foreach my $token (@list) {
+			$token = join( "=", "OU", escape_dn_value($token) );
+	}
+
+	my $dn = join( ",", reverse(@list), $self->{_syncou} );
+
+	$log->debug( "stemname " . $stemname . " converted to DN " . $dn );
 	return $dn;
 }
 
