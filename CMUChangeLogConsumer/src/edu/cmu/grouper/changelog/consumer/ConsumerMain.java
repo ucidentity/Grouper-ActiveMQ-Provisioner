@@ -157,6 +157,7 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 			for (ChangeLogEntry changeLogEntry : changeLogEntryList) {
 				Member member;
 				String groupName;
+				String stemName;
 
 				currentId = changeLogEntry.getSequenceNumber();
 
@@ -166,8 +167,25 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 						+ changeLogEntry.getChangeLogType());
 
 				if (changeLogEntry
+						.equalsCategoryAndAction(ChangeLogTypeBuiltin.STEM_DELETE)) {
+					stemName = changeLogEntry
+							.retrieveValueForLabel(ChangeLogLabels.STEM_DELETE.name);
+
+					if (stemName == null) {
+						LOG.error("No stem name for stem update/rename change type. Skipping sequence: "
+								+ currentId);
+					} else {
+						// We will send a message regardless of the sync attribute, since there are serveral 
+						// conditions where a stem is in use in the downstream system and either the attribute 
+						// isn't set to yes on the stem or any of its groups.
+						if (basicSyncType) {
+							String mesg = getStemDeletedMessage(stemName);
+							writeMessage(mesg, stemName, currentId);
+						}
+					}
+				} else if (changeLogEntry
 						.equalsCategoryAndAction(ChangeLogTypeBuiltin.STEM_UPDATE)) {
-					String stemName = changeLogEntry
+					stemName = changeLogEntry
 							.retrieveValueForLabel(ChangeLogLabels.STEM_UPDATE.name);
 					
         			String propertyChanged = changeLogEntry.retrieveValueForLabel(ChangeLogLabels.STEM_UPDATE.propertyChanged);
@@ -692,6 +710,20 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 		}
 		return mesg;
 	}
+	
+	
+	private String getStemDeletedMessage(String stemName) {
+		String mesg = "";
+		if (useXmlMessageFormat) {
+			mesg = "<operation>deleteStem</operation>";
+			mesg = mesg + "<name><![CDATA[" + stemName + "]]></name>";
+		} else {
+			mesg = "{\"operation\":\"deleteStem\",";
+			mesg = mesg + "\"name\":\"" + stemName + "\"}";
+		}
+		return mesg;
+	}
+	
 
 	private String getGroupDeletedIsMemberOfMessage(String groupName) {
 		String mesg = "";
