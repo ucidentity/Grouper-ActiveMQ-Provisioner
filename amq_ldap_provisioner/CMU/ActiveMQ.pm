@@ -566,6 +566,10 @@ sub processMessageChangeLog {
 				);
 			}
 		}
+		elsif ( $data->{"operation"} eq "deleteStem" ) {
+			$log->info("processing deleteStem for " . $data->{"name"});
+			$ldap->deleteObject($ldap->getStemDn( $data->{"name"} ));
+		}
 	};
 	if ($@) {
 		die();
