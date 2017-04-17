@@ -50,50 +50,50 @@ public class ConsumerProperties {
 		
 		final String qualifiedParameterNamespace = PARAMETER_NAMESPACE + consumerName + ".";
 
-	    LOG.debug("CMU Consumer - Setting properties for {} consumer/provisioner.", consumerName);
+	    LOG.debug("LDAP-AD Consumer - Setting properties for {} consumer/provisioner.", consumerName);
 
 
 		try {
 			
 			brokerURL = 
 					GrouperLoaderConfig.retrieveConfig().propertyValueStringRequired(qualifiedParameterNamespace + "brokerURL");
-					LOG.debug("CMU Consumer - Setting brokerURL to {}", brokerURL);
+					LOG.debug("LDAP-AD Consumer - Setting brokerURL to {}", brokerURL);
 			        
 			username = 
 					GrouperLoaderConfig.retrieveConfig().propertyValueStringRequired(qualifiedParameterNamespace + "username");
-					LOG.debug("CMU Consumer - Setting username to {}", username);
+					LOG.debug("LDAP-AD Consumer - Setting username to {}", username);
 			        
 			password = 
 					GrouperLoaderConfig.retrieveConfig().propertyValueString(qualifiedParameterNamespace + "password", "");
-					LOG.debug("CMU Consumer - Setting password to {}", password);
+					LOG.debug("LDAP-AD Consumer - Setting password to {}", password);
 			
 			targets = 
 					GrouperLoaderConfig.retrieveConfig().propertyValueStringRequired(qualifiedParameterNamespace + "targets");
-					LOG.debug("CMU Consumer - Setting targets to {}", targets);
+					LOG.debug("LDAP-AD Consumer - Setting targets to {}", targets);
 			   
 			usduExcludes = 
 					GrouperLoaderConfig.retrieveConfig().propertyValueString(qualifiedParameterNamespace + "usduExcludes", "");
-					LOG.debug("CMU Consumer - Setting usduExcludes to {}", usduExcludes);
+					LOG.debug("LDAP-AD Consumer - Setting usduExcludes to {}", usduExcludes);
 			
 			allowLargeGroupsAttribute = 
 					GrouperLoaderConfig.retrieveConfig().propertyValueString(qualifiedParameterNamespace + "allowLargeGroupsAttribute", "");
-					LOG.debug("CMU Consumer - Setting allowLargeGroupsAttribute to {}", allowLargeGroupsAttribute);
+					LOG.debug("LDAP-AD Consumer - Setting allowLargeGroupsAttribute to {}", allowLargeGroupsAttribute);
 			
 			maxMembers = 
 					GrouperLoaderConfig.retrieveConfig().propertyValueInt(qualifiedParameterNamespace + "maxMembers", 1000);
-					LOG.debug("CMU Consumer - Setting maxMembers to {}", maxMembers);
+					LOG.debug("LDAP-AD Consumer - Setting maxMembers to {}", maxMembers);
 			
 			syncAttribute = 
 					GrouperLoaderConfig.retrieveConfig().propertyValueStringRequired(qualifiedParameterNamespace + "syncAttribute");
-					LOG.debug("CMU Consumer - Setting syncAttribute to {}", syncAttribute);
+					LOG.debug("LDAP-AD Consumer - Setting syncAttribute to {}", syncAttribute);
 			   		
 			syncType = 
 					GrouperLoaderConfig.retrieveConfig().propertyValueString(qualifiedParameterNamespace + "syncType", "basic");
-					LOG.debug("CMU Consumer - Setting syncType to {}", syncType);
+					LOG.debug("LDAP-AD Consumer - Setting syncType to {}", syncType);
 					
 			useXmlMessageFormat = 
 					GrouperLoaderConfig.retrieveConfig().propertyValueBoolean(qualifiedParameterNamespace + "useXmlMessageFormat", true);
-					LOG.debug("CMU Consumer - Setting useXmlMessageFormat to {}", useXmlMessageFormat);
+					LOG.debug("LDAP-AD Consumer - Setting useXmlMessageFormat to {}", useXmlMessageFormat);
 		
 			   				
 

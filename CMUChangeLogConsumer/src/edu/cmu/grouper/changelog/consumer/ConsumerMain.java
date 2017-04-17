@@ -72,8 +72,8 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 	private static final Logger LOG = LoggerFactory.getLogger(edu.cmu.grouper.changelog.consumer.ConsumerMain.class);
 	//private static final Log LOG = LogFactory
 	//		.getLog(edu.cmu.grouper.changelog.consumer.ConsumerMain.class);
-	private GrouperSession gs;
-	private ActiveMQConnectionFactory connectionFactory;
+	private static GrouperSession gs;
+	private static ActiveMQConnectionFactory connectionFactory;
 	private static Connection connection;	
 	// Allow large groups is this is set to yes
 	private static AttributeDefName allowLargeGroupsAttribute;
@@ -84,8 +84,12 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 	private static boolean basicSyncType;
 	private static boolean iMOSyncType;
 	private static boolean useXmlMessageFormat;
-	private HashMap<String, String> syncedObjects;
+	private static HashMap<String, String> syncedObjects;
 	long currentId = 0;
+	private static String brokerURL;
+	private static String username;
+	private static String password;
+	
 	
 	
 
@@ -98,9 +102,6 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 			List<ChangeLogEntry> changeLogEntryList,
 			ChangeLogProcessorMetadata changeLogProcessorMetadata) {
 
-		String brokerURL;
-		String username;
-		String password;
 		
 		// initialize this consumer's consumerName from the change log metadata
             consumerName = changeLogProcessorMetadata.getConsumerName();
@@ -513,7 +514,7 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 	}
 	
 	
-	protected boolean groupOk (String groupName) {
+	private static boolean groupOk (String groupName) {
 		LOG.debug ("groupOk (groupName: {})", groupName);
 
 		// Check if group exists
@@ -523,9 +524,13 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 			return false;
         }
 
+		LOG.debug ("after GroupFinder");
+		
 		if (syncedObjects.containsKey(groupName)) {
 			if (syncedObjects.get(groupName).equalsIgnoreCase("yes")) return true;
 		}
+		
+		LOG.debug ("after Synced Objects");
 		
   	    // Check if the sync attribute exists and is "yes"
 		// plus membership size is less than maxMembers
@@ -581,7 +586,7 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 
 
 
-	private boolean isAttributeSetToYes(Group group, AttributeDefName attribute) {
+	private static boolean isAttributeSetToYes(Group group, AttributeDefName attribute) {
 		LOG.debug ("isAttributeSetToYes (group: {}, attribute: {})", group, attribute);
 		
 		if (group.getAttributeDelegate().retrieveAssignments(attribute).size() > 0) {
@@ -595,7 +600,7 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 	}
 
 
-	private boolean isAttributeSetToYesOnStem (Stem stem, AttributeDefName attribute) {
+	private static boolean isAttributeSetToYesOnStem (Stem stem, AttributeDefName attribute) {
 		LOG.debug ("isAttributeSetToYes (stem: {}, attribute: {})", stem, attribute);
 
         final String stemName = stem.getName();
@@ -1140,86 +1145,87 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 		return result;
 	}
 
-	private static void printUsage(Options options) {
-
-		System.out.println();
-
-		HelpFormatter formatter = new HelpFormatter();
-		formatter.printHelp(ConsumerMain.class.getSimpleName(), options, true);
-	}
 
 	public static void main(String[] args) {
 
-		String brokerURL;
-		String username;
-		String password;
-		ActiveMQConnectionFactory connectionFactory;
+		//String brokerURL;
+		//String username;
+		//String password;
+		//ActiveMQConnectionFactory connectionFactory;
+		
+		//private static AttributeDefName allowLargeGroupsAttribute;
+		// This is the maximum members to allow for a group to be provisioned
+		//private static int maxMembers;
+		//private static AttributeDefName syncAttribute;
+		//private static String consumerName;
+		//private static boolean basicSyncType;
+		//private static boolean iMOSyncType;
+		//private static boolean useXmlMessageFormat;
+		//private HashMap<String, String> syncedObjects;
+		
 
-		Options options = new Options();
-		options.addOption("all", false, "Sync all grouper groups");
-		options.addOption("group", true, "Grouper group to sync");
-		options.addOption("priv", false, "Grouper group for which privileges to sync");
-		options.addOption("allpriv", false, "Sync all grouper groups privileges");
-		options.addOption("usdu", false, "Run USDU on all subject source");
+       if (args.length == 0 ) {
+            System.console().printf("Change Log Consumer Name must be provided\n");
+            System.console().printf("LDAP-AD-FullSync.sh consumerName \n");
 
-		if (args.length == 0) {
-			printUsage(options);
-			System.exit(0);
-		}
+            System.exit(-1);
+        }
 
-		CommandLineParser parser = new GnuParser();
-		CommandLine line = null;
-
-		try {
-			line = parser.parse(options, args);
-		} catch (ParseException e) {
-			System.err.println(e.getMessage());
-			printUsage(options);
-			System.exit(1);
-		}
-
-		brokerURL = ConsumerProperties.getBrokerUrl();
-		username = ConsumerProperties.getUsername();
-		password = ConsumerProperties.getPassword();
+		// Show the consumerName and any other arguements passed in
+		System.console().printf("The arguments passed in are: %s\n", args[0]);
+		
 
 		try {
+			// Get a new consumer
+			//ConsumerMain consumer = new ConsumerMain();
+		
+			LOG.debug ("After new ConsumerMain");
+			
+			gs = GrouperSession.start(SubjectFinder.findRootSubject());
+			
+			LOG.debug ("After Grouper Session");
+			
+			
+			// Setup the properties
+			ConsumerProperties properties = new ConsumerProperties(args[0]);
+
+			brokerURL = properties.getBrokerUrl();
+			
+			username = properties.getUsername();
+			password = properties.getPassword();
+			maxMembers = properties.getMaxMembers();
+			// This is the attribute to use to know if we should send this change to the queue.
+			syncAttribute = AttributeDefNameFinder.findByName( properties.getSyncAttribute(), true);
+			// This is the attribute to use to know if we should allow large groups over maxMembers
+			allowLargeGroupsAttribute = AttributeDefNameFinder.findByName( properties.getAllowLargeGroupsAttribute(), true);
+			// Should we send this to the basic type queue   equalsIgnoreCase
+			basicSyncType = properties.getSyncType().equalsIgnoreCase("basic") ? true : false;
+			// Should we send this to the isMemberOf type queue.
+			iMOSyncType = properties.getSyncType().equalsIgnoreCase("isMemberOf") ? true : false;
+			// What outgoing message format shall we use. xml or json
+			useXmlMessageFormat = properties.getUseXmlMessageFormat();	
+			
+			syncedObjects = new HashMap<String, String>();	
+			
+			
+			LOG.debug ("After properties");	
+			
 			// Create a Connection Factory and connection
 			connectionFactory = new ActiveMQConnectionFactory(username,
 					password, brokerURL);
 			connection = connectionFactory.createConnection();
 			connection.start();
-		} catch (Exception e) {
-			LOG.error("Error connecting to ActiveMQ ", e);
-			System.exit(1);
-		}
+			
+			LOG.debug ("After ActiveMQ connection");
+			
+			
 
-		try {
-			GrouperSession session = GrouperSession.start(SubjectFinder
-					.findRootSubject());
-
-			ConsumerMain consumer = new ConsumerMain();
-
-			if (line.hasOption("all")) {
-				syncAllGroups(session, consumer);
-			} else if (line.hasOption("allpriv")) {
-				syncAllPrivs(session, consumer);
-			} else if (line.hasOption("group") && consumer.groupOk(line.getOptionValue("group"))) {
-				if (line.hasOption("priv")) {
-					syncPriv(session, line.getOptionValue("group"));
-				}else{
-					syncGroup(session, line.getOptionValue("group"));
-				}
-			} else if (line.hasOption("usdu")) {
-				try {
-					USDUWrapper.resolveMembers(session);
-				} catch (Exception e) {
-					LOG.error("Error running USDU ", e);
-					System.exit(0);
-				}
-
-			} else {
-				printUsage(options);
-				System.exit(0);
+			// Now let's sync the groups
+			syncAllGroups();
+			
+			if (connection != null){
+				connection.close();
+				LOG.error("Closing ActiveMQ connection");
 			}
 
 		} catch (Exception e) {
@@ -1227,43 +1233,45 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 			System.exit(1);
 		}
 
-		if (connection != null) {
-			try {
-				connection.close();
-			} catch (Exception e) {
-				LOG.error("Error closing ActiveMQ connection", e);
-			}
-		}
 
 	}
 
-	private static void syncAllGroups(GrouperSession session, ConsumerMain consumer) {
+	private static void syncAllGroups() {
 		LOG.debug("In syncAllGroups");
 		//Set<Group> groups = GroupFinder.findAllByType(session,
 		//		GroupTypeFinder.find("base", false));
 		//Set<Group> groups = GroupFinder.findGroups();
-		Stem stem = StemFinder.findByName(session, "edu:berkeley");
+		Stem stem = StemFinder.findByName(gs, "edu:berkeley");
 		Set<Group> groups = stem.getChildGroups(Scope.SUB);
 
 		LOG.debug("Here is the group list: " + groups);
 
 		for (Group group : groups) {
 
-			if (consumer.groupOk(group.getName())) {
-				LOG.debug("Full sync group: " + group.getName());
-				Set<Member> members = getAllGroupMembers(group, session);
+			if (groupOk(group.getName())) {
+				LOG.info("Full sync group: " + group.getName());
+				System.console().printf("Full sync for group: %s\n", group.getName());
+				Set<Member> members = getAllGroupMembers(group, gs);
 
-				String mesg = getGroupFullSyncMessage(group, members);
-				String mesgIsMemberOf = getIsMemberOfFullSyncMessage(group, members);
-				LOG.debug(mesg);
-				LOG.debug(mesgIsMemberOf);
+				if (basicSyncType) {
+					String mesg = getGroupFullSyncMessage(group, members);
+					LOG.debug(mesg);
+					try {
+						writeMessage(mesg, group.getName(), 0);
+					} catch (Exception e) {
+						LOG.error("Error sending activemq message ", e);
+					}				}
 
-				try {
-					writeMessage(mesg, group.getName(), 0);
-					writeMessage(mesgIsMemberOf, group.getName(), 0);
-				} catch (Exception e) {
-					LOG.error("Error sending activemq message ", e);
+				if (iMOSyncType) {
+					String mesgIsMemberOf = getIsMemberOfFullSyncMessage(group, members);
+					LOG.debug(mesgIsMemberOf);
+					try {
+						writeMessage(mesgIsMemberOf, group.getName(), 0);
+					} catch (Exception e) {
+						LOG.error("Error sending activemq message ", e);
+					}
 				}
+
 				LOG.info("Full Sync completed sucessfully for group: "
 						+ group.getName());
 			} else {
@@ -1272,6 +1280,8 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 			}
 		}
 	}
+
+
 
 	private static void syncAllPrivs(GrouperSession session, ConsumerMain consumer) {
 		Set<Group> groups = GroupFinder.findAllByType(session,
