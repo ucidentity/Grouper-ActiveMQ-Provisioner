@@ -4,7 +4,7 @@
 
 	<!-- Set global properties for this build -->
 
-	<property name="version" value="1.0" />
+	<property name="version" value="1.4" />
 
 	<property name="src.dir" value="src" />
 	<property name="test.dir" value="tests" />
@@ -16,11 +16,11 @@
 	<property name="doc.dir" value="doc" />
 	<property name="javadoc.dir" value="${doc.dir}/api" />
 
-	<property name="distname" value="cmuConsumer" />
+	<property name="distname" value="cmuConsumer-${version}" />
 	<property name="jarfile" value="${jar.dir}/${distname}.jar"/>
-	<property name="zipfile" value="${dist.dir}/${distname}-${version}.zip"/>
-	<property name="tarfile" value="${dist.dir}/${distname}-${version}.tar"/>
-	<property name="gzipfile" value="${dist.dir}/${distname}-${version}.tar.gz"/>
+	<property name="zipfile" value="${dist.dir}/${distname}.zip"/>
+	<property name="tarfile" value="${dist.dir}/${distname}"/>
+	<property name="gzipfile" value="${dist.dir}/${distname}.tar.gz"/>
 
 	<!-- Construct the CLASSPATH -->
 	<path id="build.path">
