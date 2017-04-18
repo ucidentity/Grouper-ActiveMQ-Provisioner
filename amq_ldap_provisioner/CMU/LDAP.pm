@@ -163,7 +163,7 @@ sub getMemberDn {
 			else {
 				$log->error( "LDAP search returned more then 1 result for uid "
 					  . $memberuid );
-				die();
+				return;
 			}
 		};
 		if ($@) {
