@@ -292,22 +292,19 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 						if (groupOk(groupName)) {
 							if (member != null) {
 								String memberName = null;
-							
+							    // Only sync subjects, not nested group names.
 								if (member.getSubjectType().toString()
 										.equals("person")) {
 									memberName = member.getSubjectId();
 									if (iMOSyncType) {
 										String mesgIsMemberOf = getIsMemberOfAddedMessage(
 												groupName, memberName);
-										writeMessage(mesgIsMemberOf, groupName,
-												currentId);
+										writeMessage(mesgIsMemberOf, groupName, currentId);
 									}
-								} else {
-									memberName = member.getName();
-								}
-								if (basicSyncType) {
-									String mesg = getGroupMemberAddedMessage(groupName,memberName);
-									writeMessage(mesg, groupName, currentId);
+									if (basicSyncType) {
+										String mesg = getGroupMemberAddedMessage(groupName,memberName);
+										writeMessage(mesg, groupName, currentId);
+									}
 								}
 							}
 						}
