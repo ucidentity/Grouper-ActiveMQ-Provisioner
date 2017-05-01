@@ -634,7 +634,7 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 		if (group != null) {
 			LOG.debug("Sync for group {}.", group.getName());
 			
-			Set<Member> members = getAllGroupMembers(group, gs);
+			Set<Member> members = getAllGroupMembers(group);
 			
 			if (basicSyncType) {
 				String mesg = getGroupFullSyncMessage(group, members);
@@ -655,7 +655,7 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 		}
 	}
 		
-	private Set<Member> getAllGroupMembers(Group group) {
+	private static Set<Member> getAllGroupMembers(Group group) {
 		Set<Member> members = new HashSet<Member>();
 
 		Set<Member> group_members = group.getMembers();
@@ -664,23 +664,6 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 			String memberType = member.getSubjectType().toString();
 			if (memberType.equals("person")) {
 				members.add(member);
-			} else if (memberType.equals("group")) {
-				Subject subject = member.getSubject();
-
-				if (subject != null) {
-					members.add(member);
-					Group nested_group = GroupFinder.findByName(gs,
-							member.getName(), false);
-					Set<Member> nested_group_members = getAllGroupMembers(
-							nested_group, gs);
-
-					for (Member nested_member : nested_group_members) {
-						members.add(nested_member);
-					}
-				} else {
-					LOG.error("Cannot find group:" + member.getName());
-				}
-
 			}
 		}
 		return members;
@@ -1001,39 +984,6 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 		return mesg;
 	}
 
-	private static Set<Member> getAllGroupMembers(Group group,
-			GrouperSession session) {
-		Set<Member> members = new HashSet<Member>();
-
-		Set<Member> group_members = group.getMembers();
-
-		for (Member member : group_members) {
-			String memberType = member.getSubjectType().toString();
-			if (memberType.equals("person")) {
-				members.add(member);
-			} else if (memberType.equals("group")) {
-				Subject subject = member.getSubject();
-
-				if (subject != null) {
-					members.add(member);
-					Group nested_group = GroupFinder.findByName(session,
-							member.getName(), false);
-					Set<Member> nested_group_members = getAllGroupMembers(
-							nested_group, session);
-
-					for (Member nested_member : nested_group_members) {
-						members.add(nested_member);
-					}
-				} else {
-					LOG.error("Cannot find group:" + member.getName());
-				}
-
-			}
-		}
-
-		return members;
-
-	}
 
 	static public String getGroupAttribute(String groupName,
 			String attributeName, Group group) {
@@ -1248,7 +1198,7 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 			if (groupOk(group.getName())) {
 				LOG.info("Full sync group: " + group.getName());
 				System.console().printf("Full sync for group: %s\n", group.getName());
-				Set<Member> members = getAllGroupMembers(group, gs);
+				Set<Member> members = getAllGroupMembers(group);
 
 				if (basicSyncType) {
 					String mesg = getGroupFullSyncMessage(group, members);
@@ -1304,7 +1254,7 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 			}
 		}
 	}
-
+/*
 	private static void syncGroup(GrouperSession session, String groupName) {
 		Group group = GroupFinder.findByName(session, groupName, false);
 		if (group != null) {
@@ -1329,7 +1279,7 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 			LOG.debug("Group not found " + groupName);
 		}
 	}
-	
+*/
 	private static void syncPriv(GrouperSession session, String groupName) {
 		Group group = GroupFinder.findByName(session, groupName, false);
 		if (group != null) {
