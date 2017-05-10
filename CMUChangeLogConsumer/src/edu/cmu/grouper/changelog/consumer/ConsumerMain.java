@@ -463,16 +463,12 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 						if (syncAttribute.getId().equalsIgnoreCase(attributeDefNameId) || 
 								allowLargeGroupsAttribute.getId().equalsIgnoreCase(attributeDefNameId)) {
 							if (isGroup) {
-								if (shouldDelete (theGroup.getName())) {
-									deleteGroup (theGroup.getName());
-								}
+									removeAllMembers (theGroup.getName());
 							} else if (isStem) {
 								final Set<edu.internet2.middleware.grouper.Group> groups = theStem.getChildGroups(Scope.SUB);
 
 				                for (edu.internet2.middleware.grouper.Group group : groups) {
-									if (shouldDelete (group.getName())) {
-				                   		deleteGroup (group.getName());
-									}
+				                   		removeAllMembers (group.getName());
 								}
 							}
 						}
@@ -626,9 +622,23 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 			}
 		syncedObjects.remove(groupName);
 		}
-		
 	}
 	
+	private void removeAllMembers (String groupName) {
+		LOG.debug ("removeAllMembers (groupName {})", groupName);
+		if (groupName == null) {
+			LOG.error("No group name for removeAllMembers change type. Skipping to next in sequence.");
+		} else {
+			if (basicSyncType) {
+				String mesg = getRemoveAllMembersMessage(groupName);
+				writeMessage(mesg, groupName, currentId);
+			}
+			if (iMOSyncType) {
+				String mesgIsMemberOf = getGroupDeletedIsMemberOfMessage(groupName);						
+				writeMessage(mesgIsMemberOf, groupName, currentId);
+			}
+		}
+	}
 	private void syncGroup(Group group) {
 		LOG.debug ("syncGroup(group {})", group);
 		if (group != null) {
@@ -670,6 +680,18 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 	}
 		
 		
+	private String getRemoveAllMembersMessage(String groupName) {
+		String mesg = "";
+		if (useXmlMessageFormat) {
+			mesg = "<operation>removeAllMembers</operation>";
+			mesg = mesg + "<name><![CDATA[" + groupName + "]]></name>";
+		} else {
+			mesg = "{\"operation\":\"removeAllMembers\",";
+			mesg = mesg + "\"name\":\"" + groupName + "\"}";
+		}
+		return mesg;
+	}
+
    
 
 	private String getGroupAddedMessage(String groupName) {

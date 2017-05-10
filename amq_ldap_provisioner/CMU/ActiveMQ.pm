@@ -361,6 +361,7 @@ sub addMessageChangeLogToBatch {
 
 sub processMessageChangeLog {
 	my @groupermembers = ();
+	my @ldapmembers      = ();
 	my ( $self, $ldap, $data ) = @_;
 	$log->debug(
 		"Calling CMU::ActiveMQ::processMessageChangeLog(self, ldap, data)");
@@ -428,6 +429,26 @@ sub processMessageChangeLog {
 						  . $data->{'memberId'}
 						  . " doesn't exist" );
 				}
+			}
+		}
+		elsif ( $data->{"operation"} eq "removeAllMembers" ) {
+			my @attrs = ();			
+			my $entry   =
+			  $ldap->getLdapEntry(
+				"(objectClass=" . $ldap->{_groupobjectclass} . ")",
+				\@attrs, $groupdn );
+			if ( defined $entry ) {
+				if ( $CMU::CFG::_CFG{'ldap'}{'env'} eq "AD" ) {
+					@ldapmembers = $ldap->getGroupMembers($groupdn);
+				}
+				else {
+					@ldapmembers = $ldap->getGroupMembers($entry);
+				}
+				$ldap->bulkGroupMemberRemove( \@ldapmembers,
+					$groupdn );
+			} else {
+				$log->info(
+						"Skipping remove all members, since no entry exists for: " . $groupdn );
 			}
 		}
 		elsif ( $data->{"operation"} eq "removeIsMemberOf" ) {
