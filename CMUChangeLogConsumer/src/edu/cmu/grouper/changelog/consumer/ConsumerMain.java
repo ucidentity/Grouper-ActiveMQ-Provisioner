@@ -141,8 +141,8 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 			connection = connectionFactory.createConnection();
 			connection.start();
 		} catch (Exception e) {
-			LOG.error("Error connecting to ActiveMQ " + e.getMessage()
-					+ " Sequence:" + currentId);
+			LOG.error("'{}' - Error connecting to ActiveMQ " + e.getMessage()
+					+ " Sequence:" + currentId, consumerName);
 			return currentId - 1;
 		}
 
@@ -150,8 +150,8 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 			// get the existing Grouper session from the loader
 			gs = GrouperSession.staticGrouperSession();
 			if (gs == null) {
-				LOG.error("Couldn't process any records: Unable to get grouper session "
-						+ currentId);
+				LOG.error("'{}' - Couldn't process any records: Unable to get grouper session "
+						+ currentId, consumerName);
 				return currentId - 1;
 			}
 			
@@ -162,10 +162,10 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 
 				currentId = changeLogEntry.getSequenceNumber();
 
-				LOG.debug("Processing sequence: "
+				LOG.debug("'{}' - Processing sequence: "
 						+ changeLogEntry.getSequenceNumber()
 						+ " ChangeLogType: "
-						+ changeLogEntry.getChangeLogType());
+						+ changeLogEntry.getChangeLogType(), consumerName);
 
 				if (changeLogEntry
 						.equalsCategoryAndAction(ChangeLogTypeBuiltin.STEM_DELETE)) {
@@ -173,8 +173,8 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 							.retrieveValueForLabel(ChangeLogLabels.STEM_DELETE.name);
 
 					if (stemName == null) {
-						LOG.error("No stem name for stem update/rename change type. Skipping sequence: "
-								+ currentId);
+						LOG.error("'{}' - No stem name for stem update/rename change type. Skipping sequence: "
+								+ currentId, consumerName);
 					} else {
 						// We will send a message regardless of the sync attribute, since there are serveral 
 						// conditions where a stem is in use in the downstream system and either the attribute 
@@ -193,11 +193,11 @@ public class ConsumerMain extends ChangeLogConsumerBase {
         			String oldStemName = changeLogEntry.retrieveValueForLabel(ChangeLogLabels.STEM_UPDATE.propertyOldValue);
 
 					if (stemName == null) {
-						LOG.error("No stem name for stem update/rename change type. Skipping sequence: "
-								+ currentId);
+						LOG.error("'{}' - No stem name for stem update/rename change type. Skipping sequence: "
+								+ currentId, consumerName);
 					} else if (!"name".equalsIgnoreCase(propertyChanged)) {
-						LOG.debug("Stem change was to something other than Stem Name. Skipping sequence: "
-								+ currentId);
+						LOG.debug("'{}' - Stem change was to something other than Stem Name. Skipping sequence: "
+								+ currentId, consumerName);
 					} else {
 
 						Stem stem = StemFinder.findByName(gs, stemName, false);
@@ -210,7 +210,7 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 								writeMessage(mesg, stemName, currentId);
 							}
 						} else {
-						   LOG.info ("stem " + stemName + " will not be renamed.");
+						   LOG.info ("'{}' - stem " + stemName + " will not be renamed.", consumerName);
 						}					
 					}
 				} else if (changeLogEntry
@@ -219,14 +219,14 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 							.retrieveValueForLabel(ChangeLogLabels.GROUP_ADD.name);
 
 					if (groupName == null) {
-						LOG.error("No group name for group add change type. Skipping sequence: "
-								+ currentId);
+						LOG.error("'{}' - No group name for group add change type. Skipping sequence: "
+								+ currentId, consumerName);
 					} else {
 						if (groupOk(groupName) && basicSyncType) {
 							String mesg = getGroupAddedMessage(groupName);
 							writeMessage(mesg, groupName, currentId);
 						} else {
-						   LOG.info ("group " + groupName + " will not be added.");
+						   LOG.info ("'{}' - group " + groupName + " will not be added.", consumerName);
 						}					
 					}
 				} else if (changeLogEntry
@@ -237,8 +237,8 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 							.retrieveValueForLabel(ChangeLogLabels.GROUP_UPDATE.description);
 
 					if (groupName == null) {
-						LOG.error("No group name for group update change type. Skipping sequence: "
-								+ currentId);
+						LOG.error("'{}' - No group name for group update change type. Skipping sequence: "
+								+ currentId, consumerName);
 					} else {
 						if (groupOk(groupName)) {
 							String propertyChanged = changeLogEntry
@@ -265,10 +265,10 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 									writeMessage(mesgIsMemberOf, groupName, currentId);
 								}
 							} else {
-								LOG.debug("Skipping sequence "
+								LOG.debug("'{}' - Skipping sequence "
 										+ changeLogEntry.getSequenceNumber()
 										+ " as group update property: "
-										+ propertyChanged + " is not handled");
+										+ propertyChanged + " is not handled", consumerName);
 							}
 						}
 					}
@@ -286,8 +286,8 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 							.retrieveValueForLabel(ChangeLogLabels.MEMBERSHIP_ADD.memberId));
 
 					if (groupName == null) {
-						LOG.error("No group name for membership add change type. Skipping sequence:"
-								+ currentId);
+						LOG.error("'{}' - No group name for membership add change type. Skipping sequence:"
+								+ currentId, consumerName);
 					} else {
 						if (groupOk(groupName)) {
 							if (member != null) {
@@ -516,14 +516,11 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 			LOG.debug("Group " + groupName + " doesn\'t exist");
 			return false;
         }
-
-		LOG.debug ("after GroupFinder");
 		
 		if (syncedObjects.containsKey(groupName)) {
 			if (syncedObjects.get(groupName).equalsIgnoreCase("yes")) return true;
 		}
 		
-		LOG.debug ("after Synced Objects");
 		
   	    // Check if the sync attribute exists and is "yes"
 		// plus membership size is less than maxMembers
@@ -1046,8 +1043,8 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 			long sequence) {
 		String result = addToMessageQueue(mesg, jmsxGroupId, sequence);
 		if (result.equals("OK")) {
-			LOG.debug("Message sent OK for squence: " + sequence + " Message: "
-					+ mesg);
+			LOG.info("'{}' - Message sent OK for squence: " + sequence + " Message: "
+					+ mesg, consumerName);
 		} else {
 			throw new RuntimeException("Message send failed with result: "
 					+ result + " Message: " + mesg);
