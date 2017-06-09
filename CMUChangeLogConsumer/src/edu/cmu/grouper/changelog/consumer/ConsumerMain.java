@@ -76,19 +76,19 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 	private static ActiveMQConnectionFactory connectionFactory;
 	private static Connection connection;	
 	// Allow large groups is this is set to yes
-	private static AttributeDefName allowLargeGroupsAttribute;
+	private static AttributeDefName allowLargeGroupsAttribute = null;
 	// This is the maximum members to allow for a group to be provisioned
-	private static int maxMembers;
-	private static AttributeDefName syncAttribute;
-	private static String consumerName;
-	private static boolean basicSyncType;
-	private static boolean iMOSyncType;
-	private static boolean useXmlMessageFormat;
+	private static int maxMembers = 0;
+	private static AttributeDefName syncAttribute = null;
+	private static String consumerName = "";
+	private static boolean basicSyncType = false;
+	private static boolean iMOSyncType = false;
+	private static boolean useXmlMessageFormat = false;
 	private static HashMap<String, String> syncedObjects;
 	long currentId = 0;
-	private static String brokerURL;
-	private static String username;
-	private static String password;
+	private static String brokerURL = "";
+	private static String username = "";
+	private static String password = "";
 	
 	
 	
@@ -508,7 +508,7 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 	
 	
 	private static boolean groupOk (String groupName) {
-		LOG.debug ("groupOk (groupName: {})", groupName);
+		LOG.debug ("'{}' - groupOk? (groupName: {})", consumerName, groupName);
 
 		// Check if group exists
 		Group group = GroupFinder.findByName(gs, groupName, false);
