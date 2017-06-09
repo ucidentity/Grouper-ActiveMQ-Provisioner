@@ -526,6 +526,31 @@ sub getGroupMembers {
 	return @members;
 }
 
+sub removeIsMemberOf {
+	my ( $self, $memberdn, $groupdn ) = @_;
+	$log->debug(
+		"Calling CMU::LDAP::389::removeIsMemberOf( self, $memberdn, $groupdn)"
+	);
+	$log->info(
+		    "Skipping removeIsMemberOf as not appropriate for AD "
+		  . $groupdn
+		  . "  in userdn "
+		  . $memberdn );
+}
+
+sub addIsMemberOf {
+	my ( $self, $memberdn, $groupdn ) = @_;
+	$log->debug(
+		"Calling CMU::LDAP::389::addIsMemberOf( self, $memberdn, $groupdn)"
+	);
+	$log->info(
+		    "Skipping addIsMemberOf as not appropriate for AD "
+		  . $groupdn
+		  . "  in userdn "
+		  . $memberdn );
+}
+
+
 sub disconnect {
 	my ($self) = @_;
 
