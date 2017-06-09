@@ -296,7 +296,7 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 								if (member.getSubjectType().toString()
 										.equals("person")) {
 									memberName = member.getSubjectId();
-									if (iMOSyncType) {
+									if (!basicSyncType) {
 										String mesgIsMemberOf = getIsMemberOfAddedMessage(
 												groupName, memberName);
 										writeMessage(mesgIsMemberOf, groupName, currentId);
@@ -327,7 +327,7 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 								if (member.getSubjectType().toString()
 										.equals("person")) {
 									memberName = member.getSubjectId();
-									if (iMOSyncType) {
+									if (!basicSyncType) {
 										String mesgIsMemberOf = getIsMemberOfDeletedMessage(
 												groupName, memberName);
 										writeMessage(mesgIsMemberOf, groupName,
