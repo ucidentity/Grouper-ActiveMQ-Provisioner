@@ -483,15 +483,15 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 					}	
 													
 				} else {
-					LOG.debug("Skipping sequence: "
+					LOG.debug("{} - Skipping sequence: "
 							+ changeLogEntry.getSequenceNumber()
 							+ " as changelog type "
 							+ changeLogEntry.getChangeLogType()
-							+ " is not handled");
+							+ " is not handled", consumerName);
 				}
 
-				LOG.debug("Sucessfully processed sequence: "
-						+ changeLogEntry.getSequenceNumber());
+				LOG.debug("{} - Sucessfully processed sequence: "
+						+ changeLogEntry.getSequenceNumber(), consumerName);
 			}
 		} catch (Exception e) {
 			LOG.error("Error processing sequence " + currentId, e);
@@ -561,7 +561,7 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 
 
 	private boolean shouldDelete (String groupName) {
-		LOG.debug ("shouldDelete (groupName: {})", groupName);
+		LOG.debug ("{} - shouldDelete (groupName: {})", consumerName, groupName);
 				
 		// Check if group exists
 		Group group = GroupFinder.findByName(gs, groupName, false);
@@ -573,18 +573,18 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 		// plus membership size is less than maxMembers
 		if (isAttributeSetToYes (group, syncAttribute)) {
 			if (group.getMembers().size() <= maxMembers) {
-				LOG.debug("Group {} should remain. Size is {}", groupName, group.getMembers().size()); 
+				LOG.debug("{} - Group {} should remain. Size is {}", consumerName, groupName, group.getMembers().size()); 
             	return false;
 			} else {
 				if (isAttributeSetToYes (group, allowLargeGroupsAttribute)) {
-					LOG.debug("Group {} should remain or add a member due to allowLargeGroups attribute being set", groupName);
+					LOG.debug("{} - Group {} should remain or add a member due to allowLargeGroups attribute being set", consumerName, groupName);
 					return false;
 				}
 				return true;
 			}
 		} else {
 			// The group doesn't have sync = yes
-			LOG.debug ("We are go for deletion group {}", groupName);
+			LOG.debug ("{} - We are go for deletion group {}", consumerName, groupName);
 			return true;
 		}
 	} 
@@ -592,7 +592,7 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 
 
 	private static boolean isAttributeSetToYes(Group group, AttributeDefName attribute) {
-		LOG.debug ("isAttributeSetToYes (group: {}, attribute: {})", group, attribute);
+		LOG.debug ("{} - isAttributeSetToYes (group: {}, attribute: {})", consumerName, group, attribute);
 		
 		if (group.getAttributeDelegate().retrieveAssignments(attribute).size() > 0) {
 			return group.getAttributeDelegate().retrieveAssignments(attribute)
@@ -620,9 +620,9 @@ public class ConsumerMain extends ChangeLogConsumerBase {
     }
 
 	private void deleteGroup (String groupName) {
-		LOG.debug ("deleteGroup (groupName {})", groupName);
+		LOG.debug ("{} - deleteGroup (groupName {})", consumerName, groupName);
 		if (groupName == null) {
-			LOG.error("No group name for group delete change type. Skipping to next in sequence.");
+			LOG.error("{} - No group name for group delete change type. Skipping to next in sequence.", consumerName);
 		} else {
 			if (basicSyncType) {
 				String mesg = getGroupDeletedMessage(groupName);
@@ -637,9 +637,9 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 	}
 	
 	private void removeAllMembers (String groupName) {
-		LOG.debug ("removeAllMembers (groupName {})", groupName);
+		LOG.debug ("{} - removeAllMembers (groupName {})", consumerName, groupName);
 		if (groupName == null) {
-			LOG.error("No group name for removeAllMembers change type. Skipping to next in sequence.");
+			LOG.error("{] - No group name for removeAllMembers change type. Skipping to next in sequence.", consumerName);
 		} else {
 			if (basicSyncType) {
 				String mesg = getRemoveAllMembersMessage(groupName);
@@ -652,28 +652,28 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 		}
 	}
 	private void syncGroup(Group group) {
-		LOG.debug ("syncGroup(group {})", group);
+		LOG.debug ("{} - syncGroup(group {})", consumerName, group);
 		if (group != null) {
-			LOG.debug("Sync for group {}.", group.getName());
+			LOG.debug("{} - Sync for group {}.", consumerName, group.getName());
 			
 			Set<Member> members = getAllGroupMembers(group);
 			
 			if (basicSyncType) {
 				String mesg = getGroupFullSyncMessage(group, members);
-				LOG.debug("GroupFullSyncMesg: {}", mesg);
+				LOG.debug("{} - GroupFullSyncMesg: {}", consumerName, mesg);
 				writeMessage(mesg, group.getName(), currentId);
 			}
 			if (iMOSyncType) {
 				String mesgIsMemberOf = getIsMemberOfFullSyncMessage(group, members);
-				LOG.debug("isMemberOfSyncMessage: ", mesgIsMemberOf);
+				LOG.debug("{} - isMemberOfSyncMessage: ", consumerName, mesgIsMemberOf);
 				writeMessage(mesgIsMemberOf, group.getName(), currentId);
 			}
 
-			LOG.info("Group Sync completed sucessfully for group "
-					+ group.getName());
+			LOG.info("{} - Group Sync completed sucessfully for group "
+					+ group.getName(), consumerName);
 
 		} else {
-			LOG.debug("Group {} not found", group.getName());
+			LOG.debug("{} - Group {} not found", consumerName, group.getName());
 		}
 	}
 		
