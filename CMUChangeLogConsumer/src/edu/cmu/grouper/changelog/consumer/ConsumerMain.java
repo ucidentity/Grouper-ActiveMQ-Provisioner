@@ -554,8 +554,12 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 		} else {
 			// The group doesn't have sync = yes
 <<<<<<< HEAD
+<<<<<<< HEAD
 			syncedObjects.put(groupName, "no");
 			LOG.debug ("No go for group {}", groupName);
+=======
+			LOG.debug ("{} - No go for group {}", consumerName, groupName);
+>>>>>>> logging-changes
 =======
 			LOG.debug ("{} - No go for group {}", consumerName, groupName);
 >>>>>>> logging-changes
