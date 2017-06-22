@@ -14,7 +14,7 @@
 package CMU::LDAP::389;
 
 use Net::LDAP::Util
-  qw(ldap_error_name ldap_error_text ldap_error_desc ldap_explode_dn escape_filter_value escape_dn_value );
+  qw(ldap_name ldap_error_text ldap_error_desc ldap_explode_dn escape_filter_value escape_dn_value );
 use Net::LDAP::Entry;
 use base ("CMU::LDAP");
 use Net::LDAPS;
@@ -339,7 +339,7 @@ sub createGroup {
 	}
 	else {
 		$entry->add(
-			'objectClass' => [ 'top', $self->{_groupobjectclass} ],
+			'objectClass' => [ 'top', $self->{_groupobjectclass}, 'extensibleObject'],
 			'cn'          => $cn
 		);
 	}
