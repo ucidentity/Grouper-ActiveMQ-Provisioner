@@ -296,7 +296,7 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 								if (member.getSubjectType().toString()
 										.equals("person")) {
 									memberName = member.getSubjectId();
-									if (iMOSyncType) {
+									if (!basicSyncType) {
 										String mesgIsMemberOf = getIsMemberOfAddedMessage(
 												groupName, memberName);
 										writeMessage(mesgIsMemberOf, groupName, currentId);
@@ -327,7 +327,7 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 								if (member.getSubjectType().toString()
 										.equals("person")) {
 									memberName = member.getSubjectId();
-									if (iMOSyncType) {
+									if (!basicSyncType) {
 										String mesgIsMemberOf = getIsMemberOfDeletedMessage(
 												groupName, memberName);
 										writeMessage(mesgIsMemberOf, groupName,
@@ -443,6 +443,7 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 						if (syncAttribute.getId().equalsIgnoreCase(attributeDefNameId) || 
 								allowLargeGroupsAttribute.getId().equalsIgnoreCase(attributeDefNameId)) {
 							if (isGroup) {
+								syncedObjects.remove(theGroup.getName());
 								if (groupOk (theGroup.getName())){
 									syncGroup(theGroup);
 								}
@@ -450,6 +451,7 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 								final Set<edu.internet2.middleware.grouper.Group> groups = theStem.getChildGroups(Scope.SUB);
 
 				                for (edu.internet2.middleware.grouper.Group group : groups) {
+									syncedObjects.remove(group.getName());
 									if (groupOk (group.getName())) {
 				                   		syncGroup(group);
 									}
@@ -463,12 +465,18 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 						if (syncAttribute.getId().equalsIgnoreCase(attributeDefNameId) || 
 								allowLargeGroupsAttribute.getId().equalsIgnoreCase(attributeDefNameId)) {
 							if (isGroup) {
+								syncedObjects.remove(theGroup.getName());
+								if (!groupOk (theGroup.getName())){
 									removeAllMembers (theGroup.getName());
+								}
 							} else if (isStem) {
 								final Set<edu.internet2.middleware.grouper.Group> groups = theStem.getChildGroups(Scope.SUB);
 
 				                for (edu.internet2.middleware.grouper.Group group : groups) {
+									syncedObjects.remove(group.getName());
+									if (!groupOk (group.getName())) {
 				                   		removeAllMembers (group.getName());
+									}
 								}
 							}
 						}
@@ -518,7 +526,13 @@ public class ConsumerMain extends ChangeLogConsumerBase {
         }
 		
 		if (syncedObjects.containsKey(groupName)) {
-			if (syncedObjects.get(groupName).equalsIgnoreCase("yes")) return true;
+			if (syncedObjects.get(groupName).equalsIgnoreCase("yes")) {
+				LOG.info ("{} - group {} is OK", consumerName, groupName);
+				return true;
+			} else if (syncedObjects.get(groupName).equalsIgnoreCase("no")) {
+				LOG.info ("{} - no go for group {}", consumerName, groupName);
+				return false;
+			}
 		}
 		
 		
@@ -539,6 +553,7 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 			}
 		} else {
 			// The group doesn't have sync = yes
+			syncedObjects.put(groupName, "no");
 			LOG.debug ("{} - No go for group {}", consumerName, groupName);
 			return false;
 		}
@@ -794,7 +809,7 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 			mesg = mesg + "<name><![CDATA[" + groupName + "]]></name>";
 			mesg = mesg + "<oldname><![CDATA[" + groupOldName + "]]></oldname>";
 		} else {
-			mesg = "{\"operation\":\"deleteGroupIsMemberOf\",";
+			mesg = "{\"operation\":\"renameGroupIsMemberOf\",";
 			mesg = mesg + "\"name\":\"" + groupName + "\",";
 			mesg = mesg + "\"oldname\":\"" + groupOldName + "\"}";
 		}
