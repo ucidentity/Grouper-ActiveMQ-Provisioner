@@ -339,7 +339,7 @@ sub createGroup {
 	}
 	else {
 		$entry->add(
-			'objectClass' => [ 'top', $self->{_groupobjectclass} ],
+			'objectClass' => [ 'top', $self->{_groupobjectclass}, 'extensibleObject'],
 			'cn'          => $cn
 		);
 	}

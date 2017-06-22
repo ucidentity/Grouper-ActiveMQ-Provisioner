@@ -540,12 +540,12 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 		// plus membership size is less than maxMembers
 		if (isAttributeSetToYes (group, syncAttribute)) {
 			if (group.getMembers().size() <= maxMembers) {
-				LOG.debug("Group {} is okay to provision or add a member. Size is {}", groupName, group.getMembers().size()); 
+				LOG.debug("{} - Group {} is okay to provision or add a member. Size is {}", consumerName, groupName, group.getMembers().size()); 
 				syncedObjects.put(groupName, "yes");
             	return true;
 			} else {
 				if (isAttributeSetToYes (group, allowLargeGroupsAttribute)) {
-					LOG.debug("Group {} is okay to provision or add a member due to allowLargeGroups attribute being set", groupName);
+					LOG.debug("{} - Group {} is okay to provision or add a member due to allowLargeGroups attribute being set", consumerName, groupName);
 					syncedObjects.put(groupName, "yes");
 					return true;
 				}
@@ -553,8 +553,12 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 			}
 		} else {
 			// The group doesn't have sync = yes
+<<<<<<< HEAD
 			syncedObjects.put(groupName, "no");
 			LOG.debug ("No go for group {}", groupName);
+=======
+			LOG.debug ("{} - No go for group {}", consumerName, groupName);
+>>>>>>> logging-changes
 			return false;
 		}
 	} 

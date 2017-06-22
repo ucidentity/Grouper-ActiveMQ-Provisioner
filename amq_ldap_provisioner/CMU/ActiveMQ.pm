@@ -644,7 +644,7 @@ sub processMessageFullSyncIsMemberOf {
 			my $memberdn = $ldap->getMemberDn($_);
 			if ( defined $memberdn ) {
 				$ldap->addIsMemberOf( $memberdn, $groupdn );
-				$log->error( "FullSyncIsMemberOf adding isMemberOf " . $groupdn
+				$log->info( "FullSyncIsMemberOf adding isMemberOf " . $groupdn
 					  . " to member "
 					  . $memberdn );
 
@@ -658,7 +658,7 @@ sub processMessageFullSyncIsMemberOf {
 			my $memberdn = $ldap->getMemberDn($_);
 			if ( defined $memberdn ) {
 				$ldap->removeIsMemberOf( $memberdn, $groupdn );
-				$log->error(
+				$log->info(
 					    "FullSyncIsMemberOf removing isMemberOf " . $groupdn
 					  . " from member "
 					  . $memberdn );
