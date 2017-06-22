@@ -540,12 +540,12 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 		// plus membership size is less than maxMembers
 		if (isAttributeSetToYes (group, syncAttribute)) {
 			if (group.getMembers().size() <= maxMembers) {
-				LOG.debug("{} - Group {} is okay to provision or add a member. Size is {}", consumerName, groupName, group.getMembers().size()); 
+				LOG.debug("Group {} is okay to provision or add a member. Size is {}", groupName, group.getMembers().size()); 
 				syncedObjects.put(groupName, "yes");
             	return true;
 			} else {
 				if (isAttributeSetToYes (group, allowLargeGroupsAttribute)) {
-					LOG.debug("{} - Group {} is okay to provision or add a member due to allowLargeGroups attribute being set", consumerName, groupName);
+					LOG.debug("Group {} is okay to provision or add a member due to allowLargeGroups attribute being set", groupName);
 					syncedObjects.put(groupName, "yes");
 					return true;
 				}
@@ -573,11 +573,11 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 		// plus membership size is less than maxMembers
 		if (isAttributeSetToYes (group, syncAttribute)) {
 			if (group.getMembers().size() <= maxMembers) {
-				LOG.debug("{} - Group {} should remain. Size is {}", consumerName, groupName, group.getMembers().size()); 
+				LOG.debug("Group {} should remain. Size is {}", groupName, group.getMembers().size()); 
             	return false;
 			} else {
 				if (isAttributeSetToYes (group, allowLargeGroupsAttribute)) {
-					LOG.debug("{} - Group {} should remain or add a member due to allowLargeGroups attribute being set", consumerName, groupName);
+					LOG.debug("Group {} should remain or add a member due to allowLargeGroups attribute being set", groupName);
 					return false;
 				}
 				return true;
@@ -592,7 +592,7 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 
 
 	private static boolean isAttributeSetToYes(Group group, AttributeDefName attribute) {
-		LOG.debug ("{} - isAttributeSetToYes (group: {}, attribute: {})", consumerName, group, attribute);
+		LOG.debug (consumerName + " - isAttributeSetToYes (group: {}, attribute: {})", group, attribute);
 		
 		if (group.getAttributeDelegate().retrieveAssignments(attribute).size() > 0) {
 			return group.getAttributeDelegate().retrieveAssignments(attribute)
