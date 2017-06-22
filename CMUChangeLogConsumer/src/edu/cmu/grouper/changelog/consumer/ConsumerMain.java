@@ -809,7 +809,7 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 			mesg = mesg + "<name><![CDATA[" + groupName + "]]></name>";
 			mesg = mesg + "<oldname><![CDATA[" + groupOldName + "]]></oldname>";
 		} else {
-			mesg = "{\"operation\":\"deleteGroupIsMemberOf\",";
+			mesg = "{\"operation\":\"renameGroupIsMemberOf\",";
 			mesg = mesg + "\"name\":\"" + groupName + "\",";
 			mesg = mesg + "\"oldname\":\"" + groupOldName + "\"}";
 		}
