@@ -17,6 +17,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.io.Serializable;
 
 import javax.jms.Connection;
 import javax.jms.DeliveryMode;
@@ -64,10 +65,12 @@ import org.json.simple.JSONObject;
 
 
 
+
+
 /**
  * Class to dispatch individual events
  */
-public class ConsumerMain extends ChangeLogConsumerBase {
+public class ConsumerMain extends ChangeLogConsumerBase implements Serializable {
 
 	private static final Logger LOG = LoggerFactory.getLogger(edu.cmu.grouper.changelog.consumer.ConsumerMain.class);
 	//private static final Log LOG = LogFactory
@@ -148,7 +151,8 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 
 		try {
 			// get the existing Grouper session from the loader
-			gs = GrouperSession.staticGrouperSession();
+			//gs = GrouperSession.staticGrouperSession();
+			gs = GrouperSession.startRootSession();
 			if (gs == null) {
 				LOG.error("'{}' - Couldn't process any records: Unable to get grouper session "
 						+ currentId, consumerName);
@@ -435,13 +439,12 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 					boolean isGroup = (theGroup != null) ? true : false;
 					final Stem theStem = theAttributeAssign != null ? theAttributeAssign.getOwnerStem() : null;
 					boolean isStem = (theStem != null) ? true : false;
-					
-	
-					// The value is set to yes
-					if (value.equalsIgnoreCase("yes")) {
-						// This is the Sync or Allow Large Groups Attribute
-						if (syncAttribute.getId().equalsIgnoreCase(attributeDefNameId) || 
-								allowLargeGroupsAttribute.getId().equalsIgnoreCase(attributeDefNameId)) {
+
+					// This is the Sync or Allow Large Groups Attribute
+					if (syncAttribute.getId().equalsIgnoreCase(attributeDefNameId) ||
+							allowLargeGroupsAttribute.getId().equalsIgnoreCase(attributeDefNameId)) {
+						// The value is set to yes
+						if (value.equalsIgnoreCase("yes")) {
 							if (isGroup) {
 								syncedObjects.remove(theGroup.getName());
 								if (groupOk (theGroup.getName())){
@@ -458,12 +461,8 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 								}
 							}
 						}
-					}
-					// The value is set to no
-					if (value.equalsIgnoreCase("no")) {
-						// This is the Sync Attribute
-						if (syncAttribute.getId().equalsIgnoreCase(attributeDefNameId) || 
-								allowLargeGroupsAttribute.getId().equalsIgnoreCase(attributeDefNameId)) {
+						// The value is set to no
+						if (value.equalsIgnoreCase("no")) {
 							if (isGroup) {
 								syncedObjects.remove(theGroup.getName());
 								if (!groupOk (theGroup.getName())){
@@ -1086,6 +1085,7 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 
 			for (int i = 0; i < target.length; i++) {
 				String targetQueue = target[i];
+				LOG.debug("The target queue is: {}", targetQueue);
 				session = connection.createSession(false,
 						Session.AUTO_ACKNOWLEDGE);
 				destination = session.createQueue(targetQueue);
@@ -1146,14 +1146,16 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 		
 
        if (args.length == 0 ) {
-            System.console().printf("Change Log Consumer Name must be provided\n");
-            System.console().printf("LDAP-AD-FullSync.sh consumerName \n");
+		   System.out.printf("Change Log Consumer Name must be provided\n");
+		   System.out.printf("LDAP-AD-FullSync.sh consumerName \n");
 
-            System.exit(-1);
+
+		   System.exit(-1);
         }
 
-		// Show the consumerName and any other arguements passed in
-		System.console().printf("The arguments passed in are: %s\n", args[0]);
+        // Show the consumerName and any other arguements passed in
+		System.out.printf("The arguments passed in are: %s\n", args[0]);
+        LOG.info("The arguments passed in are: %s\n", args[0]);
 		
 
 		try {
@@ -1162,7 +1164,9 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 		
 			LOG.debug ("After new ConsumerMain");
 			
-			gs = GrouperSession.start(SubjectFinder.findRootSubject());
+			//gs = GrouperSession.start(SubjectFinder.findRootSubject());
+			gs = GrouperSession.startRootSession();
+
 			
 			LOG.debug ("After Grouper Session");
 			
@@ -1231,7 +1235,7 @@ public class ConsumerMain extends ChangeLogConsumerBase {
 
 			if (groupOk(group.getName())) {
 				LOG.info("Full sync group: " + group.getName());
-				System.console().printf("Full sync for group: %s\n", group.getName());
+				System.out.printf("Full sync for group: %s\n", group.getName());
 				Set<Member> members = getAllGroupMembers(group);
 
 				if (basicSyncType) {
